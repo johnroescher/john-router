@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with PostGIS for spatial data
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: johnrouter-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-johnrouter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-johnrouter_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-johnrouter}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-johnrouter}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: johnrouter-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: johnrouter-backend
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-johnrouter}:${POSTGRES_PASSWORD:-johnrouter_dev}@postgres:5432/${POSTGRES_DB:-johnrouter}
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ORS_API_KEY=${ORS_API_KEY:-}
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN:-}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery worker for background jobs
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: johnrouter-celery-worker
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-johnrouter}:${POSTGRES_PASSWORD:-johnrouter_dev}@postgres:5432/${POSTGRES_DB:-johnrouter}
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ORS_API_KEY=${ORS_API_KEY:-}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app worker --loglevel=info
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: johnrouter-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_MAPBOX_TOKEN=${MAPBOX_ACCESS_TOKEN:-}
+      - NEXT_PUBLIC_MAPTILER_KEY=${MAPTILER_KEY:-}
+      - NEXT_PUBLIC_THUNDERFOREST_API_KEY=${THUNDERFOREST_API_KEY:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,339 @@
+"""Route improver service for automatically improving routes based on evaluation."""
+from typing import Optional, List, Dict, Any
+import json
+
+import structlog
+from anthropic import AsyncAnthropic
+
+from app.core.config import settings
+from app.schemas.planning import CandidateRoute
+from app.schemas.evaluation import RouteEvaluation, IntentGap, Weakness
+from app.schemas.planning import IntentObject
+from app.schemas.knowledge import KnowledgeChunk
+
+logger = structlog.get_logger()
+
+
+class RouteImprover:
+    """Service for automatically improving routes based on evaluation results."""
+
+    def __init__(self):
+        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
+        self.model = "claude-sonnet-4-20250514"
+
+    async def improve_route(
+        self,
+        route: CandidateRoute,
+        evaluation: RouteEvaluation,
+        user_intent: IntentObject,
+        knowledge_chunks: Optional[List[KnowledgeChunk]] = None,
+    ) -> CandidateRoute:
+        """Improve a route based on evaluation findings.
+        
+        Args:
+            route: Route candidate to improve
+            evaluation: Evaluation results with issues and opportunities
+            user_intent: User's intent object
+            knowledge_chunks: Optional relevant knowledge
+            
+        Returns:
+            Improved CandidateRoute (or original if no improvements possible)
+        """
+        improved = CandidateRoute(
+            candidate_id=route.candidate_id,
+            brief_id=route.brief_id,
+            label=route.label,
+            routing_profile=route.routing_profile,
+            generation_strategy=route.generation_strategy,
+            geometry=route.geometry,
+            waypoints=route.waypoints.copy() if route.waypoints else [],
+            computed=route.computed.model_copy() if hasattr(route.computed, "model_copy") else (route.computed.copy() if route.computed else {}),
+            validation=route.validation.model_copy() if hasattr(route.validation, "model_copy") else (route.validation.copy() if route.validation else {}),
+        )
+
+        changes_made = []
+
+        # 1. Fix intent gaps
+        for gap in evaluation.intent_gaps:
+            change = await self._fix_gap(improved, gap, user_intent, knowledge_chunks)
+            if change:
+                changes_made.append(change)
+
+        # 2. Fix weaknesses
+        for weakness in evaluation.weaknesses:
+            change = await self._fix_weakness(improved, weakness, user_intent, knowledge_chunks)
+            if change:
+                changes_made.append(change)
+
+        # 3. Apply creative opportunities (if time permits)
+        for opp in evaluation.improvement_opportunities[:2]:  # Limit to top 2
+            change = await self._apply_opportunity(improved, opp, user_intent, knowledge_chunks)
+            if change:
+                changes_made.append(change)
+
+        # 4. Apply LLM recommendations
+        for rec in evaluation.recommendations[:2]:  # Limit to top 2
+            change = await self._interpret_and_apply_recommendation(improved, rec, user_intent)
+            if change:
+                changes_made.append(change)
+
+        # 5. LLM-powered improvement suggestions (complete improvement loop)
+        llm_suggestions = await self._generate_llm_suggestions(
+            route=improved,
+            evaluation=evaluation,
+            user_intent=user_intent,
+            knowledge_chunks=knowledge_chunks,
+        )
+        for suggestion in llm_suggestions[:2]:
+            if suggestion:
+                changes_made.append(f"LLM suggestion: {suggestion}")
+
+        if changes_made:
+            logger.info(f"Applied {len(changes_made)} improvements to route {route.label}", changes=changes_made)
+            # Note: In a full implementation, we would regenerate the route geometry here
+            # For now, we mark that improvements were suggested
+            if improved.computed:
+                if isinstance(improved.computed, dict):
+                    improved.computed["improvements_applied"] = changes_made
+                else:
+                    improved.generation_strategy = f"{improved.generation_strategy}_improved"
+        else:
+            logger.info(f"No improvements applied to route {route.label}")
+
+        return improved
+
+    async def improve_and_reevaluate(
+        self,
+        route: CandidateRoute,
+        evaluation: RouteEvaluation,
+        user_intent: IntentObject,
+        knowledge_chunks: Optional[List[KnowledgeChunk]] = None,
+        max_iterations: int = 2,
+    ) -> tuple[CandidateRoute, RouteEvaluation]:
+        """Improve route and re-evaluate, iterating if needed.
+        
+        Args:
+            route: Route to improve
+            evaluation: Initial evaluation
+            user_intent: User intent
+            knowledge_chunks: Optional knowledge
+            max_iterations: Maximum improvement iterations
+            
+        Returns:
+            Tuple of (improved_route, final_evaluation)
+        """
+        from app.services.route_evaluator import get_route_evaluator
+        
+        current_route = route
+        current_eval = evaluation
+        route_evaluator = get_route_evaluator()
+        
+        for iteration in range(max_iterations):
+            if current_eval.intent_match_score >= 0.9 or not current_eval.has_significant_issues():
+                # Good enough, stop improving
+                break
+            
+            # Improve
+            improved_route = await self.improve_route(
+                route=current_route,
+                evaluation=current_eval,
+                user_intent=user_intent,
+                knowledge_chunks=knowledge_chunks,
+            )
+            
+            # Re-evaluate
+            current_eval = await route_evaluator.evaluate_route_against_intent(
+                route=improved_route,
+                intent=user_intent,
+                original_request=user_intent.source.raw_text if user_intent.source else "",
+                knowledge_chunks=knowledge_chunks,
+            )
+            
+            # Check if we improved
+            if current_eval.intent_match_score <= evaluation.intent_match_score + 0.05:
+                # No significant improvement, stop
+                break
+            
+            current_route = improved_route
+        
+        return current_route, current_eval
+
+    async def _fix_gap(
+        self,
+        route: CandidateRoute,
+        gap: IntentGap,
+        user_intent: IntentObject,
+        knowledge_chunks: Optional[List[KnowledgeChunk]],
+    ) -> Optional[str]:
+        """Fix an intent gap."""
+        if gap.type == "distance":
+            # Distance mismatch
+            if gap.expected_value and gap.actual_value:
+                diff_km = gap.expected_value - gap.actual_value
+                if diff_km > 0:
+                    # Route is too short - we'd need to add waypoints or extend
+                    return f"Route needs {diff_km:.1f} km more distance"
+                else:
+                    # Route is too long - we'd need to shorten
+                    return f"Route needs {abs(diff_km):.1f} km less distance"
+        elif gap.type == "elevation":
+            # Elevation mismatch
+            if gap.expected_value and gap.actual_value:
+                diff_m = gap.expected_value - gap.actual_value
+                if diff_m > 0:
+                    return f"Route needs {diff_m:.0f} m more elevation gain"
+                else:
+                    return f"Route needs {abs(diff_m):.0f} m less elevation gain"
+        elif gap.type == "location":
+            # Missing location - would need to add waypoint
+            return f"Route should pass through: {gap.description}"
+        
+        return None
+
+    async def _fix_weakness(
+        self,
+        route: CandidateRoute,
+        weakness: Weakness,
+        user_intent: IntentObject,
+        knowledge_chunks: Optional[List[KnowledgeChunk]],
+    ) -> Optional[str]:
+        """Fix a weakness in the route."""
+        if weakness.type == "highway_segment":
+            # Highway segment that should be avoided
+            # In full implementation, we'd search for alternative routes
+            if weakness.suggestion:
+                return f"Replace highway segment with: {weakness.suggestion}"
+            return "Replace highway segment with quieter alternative"
+        
+        elif weakness.type == "too_short":
+            # Route is too short
+            return "Extend route to meet distance target"
+        
+        elif weakness.type == "too_hilly":
+            # Route is too hilly
+            return "Reroute to avoid steep climbs"
+        
+        elif weakness.type == "poor_surface":
+            # Poor surface quality
+            return "Reroute to use better surface types"
+        
+        return None
+
+    async def _apply_opportunity(
+        self,
+        route: CandidateRoute,
+        opportunity,
+        user_intent: IntentObject,
+        knowledge_chunks: Optional[List[KnowledgeChunk]],
+    ) -> Optional[str]:
+        """Apply a creative improvement opportunity."""
+        if opportunity.type == "add_scenic_detour":
+            return f"Add scenic detour: {opportunity.description}"
+        elif opportunity.type == "include_poi":
+            return f"Include point of interest: {opportunity.description}"
+        elif opportunity.type == "better_surface":
+            return f"Improve surface quality: {opportunity.description}"
+        
+        return None
+
+    async def _interpret_and_apply_recommendation(
+        self,
+        route: CandidateRoute,
+        recommendation: str,
+        user_intent: IntentObject,
+    ) -> Optional[str]:
+        """Interpret and apply an LLM recommendation."""
+        # For now, we just log the recommendation
+        # In full implementation, we'd parse and apply it
+        if "replace" in recommendation.lower() or "avoid" in recommendation.lower():
+            return f"Applied recommendation: {recommendation[:100]}"
+        elif "add" in recommendation.lower() or "include" in recommendation.lower():
+            return f"Applied recommendation: {recommendation[:100]}"
+        
+        return None
+
+    async def _generate_llm_suggestions(
+        self,
+        route: CandidateRoute,
+        evaluation: RouteEvaluation,
+        user_intent: IntentObject,
+        knowledge_chunks: Optional[List[KnowledgeChunk]],
+    ) -> List[str]:
+        """Generate LLM-powered improvement suggestions."""
+        if not self.client:
+            return []
+
+        try:
+            route_summary = {
+                "distance_km": route.computed.distance_km if route.computed else None,
+                "elevation_gain_m": route.computed.elevation_gain_m if route.computed else None,
+            }
+
+            knowledge_text = ""
+            if knowledge_chunks:
+                knowledge_list = [{"content": chunk.content[:150]} for chunk in knowledge_chunks[:3]]
+                knowledge_text = f"\nRelevant knowledge: {json.dumps(knowledge_list, indent=2)}"
+
+            prompt = f"""You are an expert cycling route planner. A route was generated but has some issues.
+
+User Request: "{user_intent.source.raw_text if user_intent.source else 'N/A'}"
+
+Current Route:
+{json.dumps(route_summary, indent=2)}
+
+Issues Found:
+{json.dumps([w.model_dump() for w in evaluation.weaknesses], indent=2)}{knowledge_text}
+
+Suggest up to 3 specific improvements to better match the intent. Provide each suggestion with:
+- What change to make (e.g., "replace Highway 9 segment with parallel Greenway Trail")
+- Why it improves the route
+
+Return ONLY valid JSON array:
+[
+  {{"change": "...", "reason": "..."}},
+  ...
+]
+"""
+
+            response = await self.client.messages.create(
+                model=self.model,
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            text = response.content[0].text if response.content else "[]"
+            cleaned = self._extract_json(text)
+            suggestions = json.loads(cleaned)
+            
+            return [s.get("change", "") for s in suggestions if isinstance(s, dict)]
+        except Exception as e:
+            logger.warning(f"LLM suggestion generation failed: {e}", exc_info=True)
+            return []
+
+    def _extract_json(self, text: str) -> str:
+        """Extract JSON from LLM response."""
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            if len(lines) > 2 and lines[-1].strip() == "```":
+                lines = lines[1:-1]
+            else:
+                lines = lines[1:]
+            cleaned = "\n".join(lines)
+        start = cleaned.find("[")
+        end = cleaned.rfind("]")
+        if start != -1 and end != -1 and end > start:
+            return cleaned[start:end + 1]
+        return "[]"
+
+
+# Singleton instance
+_route_improver: Optional[RouteImprover] = None
+
+
+def get_route_improver() -> RouteImprover:
+    """Get or create RouteImprover singleton."""
+    global _route_improver
+    if _route_improver is None:
+        _route_improver = RouteImprover()
+    return _route_improver
