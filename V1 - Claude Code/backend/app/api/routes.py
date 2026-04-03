@@ -792,10 +792,19 @@ async def route_point_to_point(
                 else:
                     parsed = brouter_candidate
 
+            winning_router = None
+            for name in ("ors", "brouter", "graphhopper"):
+                if name in parsed_candidates and parsed_candidates[name] is parsed:
+                    winning_router = name
+                    break
+            if winning_router is None:
+                winning_router = "unknown"
+
             parsed = await routing_service._attach_valhalla_surface(
                 parsed,
                 routing_service.VALHALLA_PROFILES.get(request.sport_type, "bicycle"),
             )
+            parsed["_router_used"] = winning_router
             return parsed
 
         parsed = await _route_with_coords(coords)
@@ -812,6 +821,8 @@ async def route_point_to_point(
             ground=surface_data.get("ground", 0),
             unknown=surface_data.get("unknown", 0),
         )
+        router_used = parsed.pop("_router_used", None)
+        surface_source = (parsed.get("surface_info") or {}).get("source") or "unknown"
         logger.info(
             "route_point_to_point_success",
             request_id=request_id,
@@ -826,6 +837,8 @@ async def route_point_to_point(
                 "unknown": surface_response.unknown,
             },
             surface_info_source=parsed.get("surface_info", {}).get("source"),
+            router_used=router_used,
+            surface_source=surface_source,
         )
         return PointToPointResponse(
             geometry=GeoJSONLineString(
@@ -837,6 +850,9 @@ async def route_point_to_point(
             elevation_gain=parsed.get("elevation_gain", 0),
             surface_breakdown=surface_response,
             degraded=False,
+            router_used=router_used,
+            surface_source=surface_source,
+            fallback_reason=None,
         )
 
     except Exception as e:
@@ -883,12 +899,16 @@ async def route_point_to_point(
                     degraded_reason = "snapped_to_network"
                     if connector_reasons:
                         degraded_reason = f"{degraded_reason};{','.join(connector_reasons)}"
+                    ru_snap = parsed.pop("_router_used", None)
+                    surface_src_snap = (parsed.get("surface_info") or {}).get("source") or "unknown"
                     logger.info(
                         "route_point_to_point_success",
                         request_id=request_id,
                         degraded=True,
                         degraded_reason=degraded_reason,
                         elapsed_ms=int((time.monotonic() - start_ts) * 1000),
+                        router_used=ru_snap,
+                        surface_source=surface_src_snap,
                     )
                     return PointToPointResponse(
                         geometry=GeoJSONLineString(
@@ -907,6 +927,9 @@ async def route_point_to_point(
                         ),
                         degraded=True,
                         degraded_reason=degraded_reason,
+                        router_used=ru_snap,
+                        surface_source=surface_src_snap,
+                        fallback_reason="snap_recovery",
                     )
         except Exception as snap_error:
             logger.warning(

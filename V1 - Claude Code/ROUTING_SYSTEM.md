@@ -110,6 +110,8 @@ These endpoints orchestrate routing, snapping, surface enrichment, and elevation
 
 ### 4.2 Routing Service Provider Selection
 
+**Policy matrix (sport × route shape × engine):** see [`ROUTER_POLICY_MATRIX.md`](./ROUTER_POLICY_MATRIX.md).
+
 The routing engine is selected per request using:
 
 - The **explicit `routing_service`** in `RouteConstraints` (if provided).

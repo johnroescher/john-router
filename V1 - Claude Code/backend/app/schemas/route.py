@@ -488,3 +488,7 @@ class PointToPointResponse(BaseModel):
     surface_breakdown: SurfaceBreakdownResponse
     degraded: bool = False
     degraded_reason: Optional[str] = None
+    # Observability (V1 P1): see ROUTER_POLICY_MATRIX.md
+    router_used: Optional[str] = None
+    surface_source: Optional[str] = None
+    fallback_reason: Optional[str] = None

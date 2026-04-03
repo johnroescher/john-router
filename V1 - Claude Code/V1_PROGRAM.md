@@ -45,10 +45,10 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 
 ### P1 workstreams
 
-1. **Router policy matrix** — One page: for each `sport_type` × `route_type`, which engine is primary, fallback order, and when surface is “unknown.”
+1. **Router policy matrix** — **Done:** [`ROUTER_POLICY_MATRIX.md`](./ROUTER_POLICY_MATRIX.md) (`sport_type` × `route_type` × engine, P2P specifics, env keys).
 2. **Golden routes** — Versioned fixtures (GeoJSON + expected bands for distance, surface %, max grade). Run in pytest or smoke script.
 3. **Failure taxonomy** — Classify: no candidates, degraded surface, validation hard-fail, timeout; map each to **user-visible** messages (VP Design).
-4. **Observability** — Structured logs already present in places; standardize `router_used`, `surface_source`, `fallback_reason` on every response path.
+4. **Observability** — Structured logs + `POST /api/routes/point-to-point` returns `router_used`, `surface_source`, `fallback_reason` where applicable; extend `generate` responses next if needed.
 
 ### P1 success metrics
 
@@ -110,3 +110,4 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 ## Changelog
 
 - **2026-04-03:** Program created from codebase audit and executive priorities (P1 routing, P2 LLM).
+- **2026-04-03:** Added `ROUTER_POLICY_MATRIX.md` and P2P API observability fields (`router_used`, `surface_source`, `fallback_reason`).
