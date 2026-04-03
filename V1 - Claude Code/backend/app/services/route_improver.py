@@ -17,7 +17,7 @@ class RouteImprover:
     """Service for automatically improving routes based on evaluation results."""
 
     def __init__(self):
-        from app.services.llm_client import get_llm_client, get_llm_model
+        from app.services.llm_client import clamp_max_tokens, extract_llm_text, get_llm_client, get_llm_model
         self.client = get_llm_client()
         self.model = get_llm_model()
 
@@ -478,13 +478,13 @@ Return ONLY valid JSON array:
 
             response = await self.client.chat.completions.create(
                 model=self.model,
-                max_tokens=1000,
+                max_tokens=clamp_max_tokens(1000),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=1.0,
                 top_p=1.0,
             )
 
-            text = response.choices[0].message.content if response.choices else "[]"
+            text = extract_llm_text(response.choices[0]) if response.choices else "[]"
             cleaned = self._extract_json(text)
             suggestions = json.loads(cleaned)
             

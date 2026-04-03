@@ -55,6 +55,33 @@ class TestLLMClient:
         from app.services.llm_client import _LLM_BASE_URL
         assert _LLM_BASE_URL == "https://integrate.api.nvidia.com/v1"
 
+    def test_clamp_max_tokens_raises_floor(self):
+        from app.services.llm_client import clamp_max_tokens, MIN_MAX_TOKENS
+        assert clamp_max_tokens(300) == MIN_MAX_TOKENS
+        assert clamp_max_tokens(500) == MIN_MAX_TOKENS
+        assert clamp_max_tokens(16384) == 16384
+
+    def test_extract_llm_text_prefers_content(self):
+        from app.services.llm_client import extract_llm_text
+        choice = MagicMock()
+        choice.message.content = "hello"
+        choice.message.reasoning = "thinking..."
+        assert extract_llm_text(choice) == "hello"
+
+    def test_extract_llm_text_falls_back_to_reasoning(self):
+        from app.services.llm_client import extract_llm_text
+        choice = MagicMock()
+        choice.message.content = None
+        choice.message.reasoning = "thinking output"
+        assert extract_llm_text(choice) == "thinking output"
+
+    def test_extract_llm_text_returns_empty_when_nothing(self):
+        from app.services.llm_client import extract_llm_text
+        choice = MagicMock()
+        choice.message.content = None
+        choice.message.reasoning = None
+        assert extract_llm_text(choice) == ""
+
 
 # ---------------------------------------------------------------------------
 # Service constructors
@@ -216,6 +243,7 @@ class TestLiveNVIDIANIM:
     @pytest.mark.asyncio
     async def test_nim_endpoint_responds(self):
         from openai import AsyncOpenAI
+        from app.services.llm_client import clamp_max_tokens, extract_llm_text
 
         client = AsyncOpenAI(
             base_url="https://integrate.api.nvidia.com/v1",
@@ -223,11 +251,11 @@ class TestLiveNVIDIANIM:
         )
         response = await client.chat.completions.create(
             model="moonshotai/kimi-k2.5",
-            max_tokens=50,
+            max_tokens=clamp_max_tokens(100),
             messages=[{"role": "user", "content": "Reply with exactly: OK"}],
-            temperature=0.0,
+            temperature=1.0,
+            top_p=1.0,
         )
         assert response.choices
-        text = response.choices[0].message.content
-        assert text is not None
+        text = extract_llm_text(response.choices[0])
         assert len(text) > 0

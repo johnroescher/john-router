@@ -1892,17 +1892,18 @@ Current intent: {json.dumps(intent.model_dump(), indent=2)}
         
         try:
             import asyncio
+            from app.services.llm_client import clamp_max_tokens, extract_llm_text
             response = await asyncio.wait_for(
                 self.client.chat.completions.create(
                     model=self.model,
-                    max_tokens=4096,
+                    max_tokens=clamp_max_tokens(4096),
                     messages=[{"role": "user", "content": prompt}],
                     temperature=1.0,
                     top_p=1.0,
                 ),
                 timeout=30.0,
             )
-            text = response.choices[0].message.content if response.choices else "{}"
+            text = extract_llm_text(response.choices[0]) if response.choices else "{}"
             cleaned = self._extract_json(text)
             try:
                 result = json.loads(cleaned)

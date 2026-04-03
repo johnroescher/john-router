@@ -36,7 +36,7 @@ class IntelligentRoutePlanner:
     """
 
     def __init__(self):
-        from app.services.llm_client import get_llm_client, get_llm_model
+        from app.services.llm_client import clamp_max_tokens, extract_llm_text, get_llm_client, get_llm_model
         self.client = get_llm_client()
         self.model = get_llm_model()
 
@@ -123,7 +123,7 @@ Think like a human rider planning their own ride."""
         if self.client:
             response = await self.client.chat.completions.create(
                 model=self.model,
-                max_tokens=1024,
+                max_tokens=clamp_max_tokens(1024),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=1.0,
                 top_p=1.0,
@@ -131,7 +131,7 @@ Think like a human rider planning their own ride."""
 
             import json
             try:
-                return json.loads(response.choices[0].message.content)
+                return json.loads(extract_llm_text(response.choices[0]))
             except Exception:
                 pass
 
@@ -198,7 +198,7 @@ Return JSON:
         if self.client:
             response = await self.client.chat.completions.create(
                 model=self.model,
-                max_tokens=512,
+                max_tokens=clamp_max_tokens(512),
                 messages=[{"role": "user", "content": context_prompt}],
                 temperature=1.0,
                 top_p=1.0,
@@ -206,7 +206,7 @@ Return JSON:
 
             import json
             try:
-                mentioned = json.loads(response.choices[0].message.content)
+                mentioned = json.loads(extract_llm_text(response.choices[0]))
             except Exception:
                 mentioned = {"trail_systems": [], "specific_trails": [], "geographic_areas": []}
 
@@ -312,7 +312,7 @@ Be specific and actionable."""
         if self.client:
             response = await self.client.chat.completions.create(
                 model=self.model,
-                max_tokens=1024,
+                max_tokens=clamp_max_tokens(1024),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=1.0,
                 top_p=1.0,
@@ -320,7 +320,7 @@ Be specific and actionable."""
 
             import json
             try:
-                analysis = json.loads(response.choices[0].message.content)
+                analysis = json.loads(extract_llm_text(response.choices[0]))
             except Exception:
                 analysis = None
 
