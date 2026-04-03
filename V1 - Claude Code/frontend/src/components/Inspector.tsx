@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography, Grid } from '@mui/material';
+import { Box, Typography, Grid, Alert } from '@mui/material';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useUIStore } from '@/stores/uiStore';
 import { useRouteStore } from '@/stores/routeStore';
@@ -17,6 +17,7 @@ import {
 } from '@/lib/utils';
 import { normalizeSurfaceBreakdown } from '@/lib/surfaceMix';
 import ElevationChart from '@/components/inspector/ElevationChart';
+import SurfaceBreakdownChart from '@/components/inspector/SurfaceBreakdownChart';
 
 function StatCard({ label, value, unit }: { label: string; value: string | number; unit?: string }) {
   return (
@@ -69,8 +70,11 @@ function SummaryTab() {
     riskTolerance: state.riskTolerance,
   }));
   const segmentedSurface = useSurfaceStore((state) => state.segmentedSurface);
+  const enrichmentError = useSurfaceStore((state) => state.enrichmentError);
+  const isEnrichingSurface = useSurfaceStore((state) => state.isEnriching);
   // Get surface data - prefer enriched data if available, normalize to ensure validity
   const aggregatedBreakdown = useSurfaceStore((state) => state.aggregatedBreakdown);
+  const manualAnalysisError = useRouteStore((state) => state.manualAnalysisError);
 
   const analysis = candidates[selectedCandidateIndex]?.analysis;
   const route = currentRoute;
@@ -164,6 +168,26 @@ function SummaryTab() {
         </Grid>
       </Grid>
 
+      {(enrichmentError || manualAnalysisError) && (
+        <Alert severity="warning" sx={{ mt: 1 }}>
+          {enrichmentError && (
+            <Typography variant="body2" component="span" display="block">
+              Surface enrichment: {enrichmentError}
+            </Typography>
+          )}
+          {manualAnalysisError && (
+            <Typography variant="body2" component="span" display="block">
+              Elevation: {manualAnalysisError}
+            </Typography>
+          )}
+        </Alert>
+      )}
+      {isEnrichingSurface && !enrichmentError && (
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+          Enriching surface segments on the map…
+        </Typography>
+      )}
+
       {/* Elevation chart */}
       <Box sx={{ mt: 0.75 }}>
         {elevationAnalysis?.elevationProfile?.length ? (
@@ -171,10 +195,18 @@ function SummaryTab() {
         ) : (
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography color="text.secondary">
-              {isAnalyzing ? 'Analyzing elevation data...' : 'No elevation data available'}
+              {isAnalyzing
+                ? 'Analyzing elevation data...'
+                : manualAnalysisError
+                  ? 'Elevation profile could not be loaded.'
+                  : 'No elevation data available'}
             </Typography>
           </Box>
         )}
+      </Box>
+
+      <Box sx={{ mt: 1.5 }}>
+        <SurfaceBreakdownChart />
       </Box>
     </Box>
   );

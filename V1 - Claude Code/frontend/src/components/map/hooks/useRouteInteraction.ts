@@ -63,7 +63,13 @@ const isRoadOrTrailFeature = (feature: MapGeoJSONFeature) => {
   return false;
 };
 
-const getNearestPointOnSegment = (target: ScreenPoint, start: ScreenPoint, end: ScreenPoint) => {
+type SegmentMatch = { point: ScreenPoint; distanceSq: number };
+
+const getNearestPointOnSegment = (
+  target: ScreenPoint,
+  start: ScreenPoint,
+  end: ScreenPoint,
+): SegmentMatch => {
   const abx = end.x - start.x;
   const aby = end.y - start.y;
   const abLenSq = abx * abx + aby * aby;
@@ -75,7 +81,7 @@ const getNearestPointOnSegment = (target: ScreenPoint, start: ScreenPoint, end: 
   const apx = target.x - start.x;
   const apy = target.y - start.y;
   const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / abLenSq));
-  const closest = { x: start.x + abx * t, y: start.y + aby * t };
+  const closest: ScreenPoint = { x: start.x + abx * t, y: start.y + aby * t };
   const dx = target.x - closest.x;
   const dy = target.y - closest.y;
   return { point: closest, distanceSq: dx * dx + dy * dy };
@@ -103,7 +109,7 @@ export function useRouteInteraction(mapRef: React.RefObject<MapRef | null>) {
 
       const targetPoint = map.project([coordinate.lng, coordinate.lat]);
       const searchRadii = [8, 16, 32, 64];
-      let best: { point: ScreenPoint; distanceSq: number } | null = null;
+      let best: SegmentMatch | null = null;
 
       for (const radius of searchRadii) {
         const bbox: [[number, number], [number, number]] = [
@@ -141,7 +147,8 @@ export function useRouteInteraction(mapRef: React.RefObject<MapRef | null>) {
           }
         }
 
-        if (best && best.distanceSq <= radius * radius) {
+        const hit = best;
+        if (hit !== null && hit.distanceSq <= radius * radius) {
           break;
         }
       }

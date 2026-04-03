@@ -104,6 +104,7 @@ export async function POST(request: Request) {
 
     const deduped = new Map<string, any>();
     for (const item of results) {
+      if (!item) continue;
       const key = `${item.label.toLowerCase()}-${item.lat.toFixed(4)}-${item.lon.toFixed(4)}`;
       if (!deduped.has(key)) {
         deduped.set(key, item);

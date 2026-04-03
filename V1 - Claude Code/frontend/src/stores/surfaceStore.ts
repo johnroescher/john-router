@@ -54,7 +54,7 @@ export const useSurfaceStore = create<SurfaceState>()(
       state.segmentedSurface = data ? {
         ...data,
         segments: [...data.segments],
-        qualityMetrics: data.qualityMetrics ? { ...data.qualityMetrics } : null,
+        qualityMetrics: data.qualityMetrics ? { ...data.qualityMetrics } : undefined,
       } : null;
       state.enrichmentError = null;
       // Update computed aggregated breakdown when segmented surface changes

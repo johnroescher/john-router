@@ -226,6 +226,8 @@ interface RouteState {
   routeGeometry: number[][] | null;
   selectedSegmentIndex: number | null;
   manualAnalysis: RouteAnalysis | null;
+  /** Set when analyzeGeometry fails (distinct from missing data). */
+  manualAnalysisError: string | null;
 
   // Candidates
   candidates: RouteCandidate[];
@@ -285,6 +287,7 @@ interface RouteState {
   resetRoute: () => void;
   updateRouteStats: (stats: { distanceMeters: number; elevationGain: number; durationSeconds: number }) => void;
   setManualAnalysis: (analysis: RouteAnalysis | null) => void;
+  setManualAnalysisError: (message: string | null) => void;
   setManualSurfaceBreakdown: (surfaceBreakdown: {
     pavement: number;
     gravel: number;
@@ -367,6 +370,7 @@ export const useRouteStore = create<RouteState>()(
       routeGeometry: null,
       selectedSegmentIndex: null,
       manualAnalysis: null,
+      manualAnalysisError: null,
       candidates: [],
       selectedCandidateIndex: 0,
       constraints: defaultConstraints,
@@ -402,6 +406,7 @@ export const useRouteStore = create<RouteState>()(
         state.manualUndoStack = [];
         state.manualRedoStack = [];
         state.manualAnalysis = null;
+        state.manualAnalysisError = null;
         if (route?.geometry) {
           state.routeGeometry = route.geometry.coordinates;
           console.log('routeGeometry set to', state.routeGeometry?.length, 'points');
@@ -435,6 +440,7 @@ export const useRouteStore = create<RouteState>()(
       state.manualUndoStack = [];
       state.manualRedoStack = [];
       state.manualAnalysis = null;
+      state.manualAnalysisError = null;
       if (candidates.length > 0) {
         state.currentRoute = candidates[0].route;
         if (candidates[0].route.geometry) {
@@ -451,6 +457,7 @@ export const useRouteStore = create<RouteState>()(
       state.manualUndoStack = [];
       state.manualRedoStack = [];
       state.manualAnalysis = null;
+      state.manualAnalysisError = null;
       if (state.candidates[index]) {
         state.currentRoute = state.candidates[index].route;
         if (state.candidates[index].route.geometry) {
@@ -643,6 +650,7 @@ export const useRouteStore = create<RouteState>()(
       state.manualUndoStack = [];
       state.manualRedoStack = [];
       state.manualAnalysis = null;
+      state.manualAnalysisError = null;
       state.isAnalyzing = false;
       state.isRoutingDegraded = false;
       state.constraints = defaultConstraints;
@@ -679,6 +687,11 @@ export const useRouteStore = create<RouteState>()(
 
     setManualAnalysis: (analysis) => set((state) => {
       state.manualAnalysis = analysis;
+      state.manualAnalysisError = null;
+    }),
+
+    setManualAnalysisError: (message) => set((state) => {
+      state.manualAnalysisError = message;
     }),
 
     setManualSurfaceBreakdown: (surfaceBreakdown) => set((state) => {

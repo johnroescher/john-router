@@ -1380,7 +1380,9 @@ class RoutingService:
             if use_brouter and constraints.sport_type in [SportType.MTB, SportType.GRAVEL]:
                 logger.info("BRouter failed surface quality - trying ORS as fallback")
                 try:
-                    ors_profile = "cycling-road"  # ORS profile for gravel/mixed
+                    ors_profile = self.ORS_PROFILES.get(
+                        constraints.sport_type, "cycling-road"
+                    )
                     ors_options = self._build_ors_options(constraints, ors_profile)
 
                     if constraints.route_type == RouteType.LOOP:

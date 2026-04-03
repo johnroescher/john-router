@@ -274,7 +274,7 @@ const MapCore: React.FC = () => {
     };
   }, [addUnpavedPattern, activeMapStyle]);
 
-  const handleMapError = useCallback((event: maplibregl.ErrorEvent) => {
+  const handleMapError = useCallback((event: { error?: { message?: string } }) => {
     if (hasFallenBackRef.current) return;
 
     const message = event?.error?.message || 'Unknown map error';

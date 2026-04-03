@@ -29,8 +29,11 @@ export default function SurfaceBreakdownChart() {
     if (segmentedSurface && segmentedSurface.dataQuality > 20) {
       return aggregatedBreakdown;
     }
+    if (currentRoute?.surfaceBreakdown) {
+      return normalizeSurfaceBreakdown(currentRoute.surfaceBreakdown);
+    }
     return { pavement: 0, gravel: 0, dirt: 0, singletrack: 0, unknown: 100 };
-  }, [segmentedSurface, aggregatedBreakdown]);
+  }, [segmentedSurface, aggregatedBreakdown, currentRoute?.surfaceBreakdown]);
 
   // Debug logging to diagnose surface data issues
   if (process.env.NODE_ENV === 'development') {
@@ -54,7 +57,11 @@ export default function SurfaceBreakdownChart() {
   if (process.env.NODE_ENV === 'development') {
     console.log('[SurfaceBreakdownChart] Simplified mix:', mix);
   }
-  const isEnriched = segmentedSurface && segmentedSurface.dataQuality > 20;
+  const isEnriched = Boolean(segmentedSurface && segmentedSurface.dataQuality > 20);
+  const hasRouteBreakdown = Boolean(
+    currentRoute?.surfaceBreakdown &&
+      normalizeSurfaceBreakdown(currentRoute.surfaceBreakdown).unknown < 99.5,
+  );
   const qualityMetrics = segmentedSurface?.qualityMetrics;
 
   // Prepare data for pie chart - show simplified paved/unpaved/unknown
@@ -188,7 +195,9 @@ export default function SurfaceBreakdownChart() {
         <Typography sx={{ fontSize: '0.625rem', color: 'text.secondary', lineHeight: 1.4 }}>
           {isEnriched
             ? `Surface data enriched from OpenStreetMap. Coverage ${qualityMetrics?.coveragePercent?.toFixed(0) ?? '—'}%, avg confidence ${qualityMetrics?.avgConfidence?.toFixed(2) ?? '—'}.`
-            : 'Surface data unavailable or low quality. Showing unknown.'
+            : hasRouteBreakdown
+              ? 'Surface mix from route analysis (per-segment enrichment may add detail on the map).'
+              : 'Surface data unavailable or low quality for this view.'
           }
         </Typography>
       </Box>

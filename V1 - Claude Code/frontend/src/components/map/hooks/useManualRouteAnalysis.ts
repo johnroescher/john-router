@@ -18,6 +18,7 @@ export function useManualRouteAnalysis() {
   const candidates = useRouteStore((state) => state.candidates);
   const selectedCandidateIndex = useRouteStore((state) => state.selectedCandidateIndex);
   const setManualAnalysis = useRouteStore((state) => state.setManualAnalysis);
+  const setManualAnalysisError = useRouteStore((state) => state.setManualAnalysisError);
   const setIsAnalyzing = useRouteStore((state) => state.setIsAnalyzing);
   const manualSegments = useRouteStore((state) => state.manualSegments);
 
@@ -45,7 +46,8 @@ export function useManualRouteAnalysis() {
 
     try {
       setIsAnalyzing(true);
-      
+      setManualAnalysisError(null);
+
       const analysis = await api.analyzeGeometry({
         type: 'LineString',
         coordinates: geometry,
@@ -60,11 +62,16 @@ export function useManualRouteAnalysis() {
       // Ignore abort errors
       if (error?.name !== 'AbortError' && error?.code !== 'ERR_CANCELED') {
         console.error('[useManualRouteAnalysis] Failed to analyze route:', error);
+        const msg =
+          error?.response?.data?.detail ||
+          error?.message ||
+          'Could not load elevation profile. Check your connection and try again.';
+        setManualAnalysisError(typeof msg === 'string' ? msg : 'Elevation analysis failed.');
       }
     } finally {
       setIsAnalyzing(false);
     }
-  }, [setManualAnalysis, setIsAnalyzing]);
+  }, [setManualAnalysis, setManualAnalysisError, setIsAnalyzing]);
 
   useEffect(() => {
     const candidateAnalysis = candidates[selectedCandidateIndex]?.analysis;

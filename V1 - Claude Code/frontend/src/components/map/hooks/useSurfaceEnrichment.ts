@@ -135,13 +135,15 @@ export function useSurfaceEnrichment() {
           const breakdown = seg.surfaceBreakdown;
           
           // Create sub-segments for each surface type proportional to the breakdown
-          const surfaceTypes: Array<{ type: SurfaceType; percent: number }> = [
-            { type: 'pavement', percent: breakdown.pavement || 0 },
-            { type: 'gravel', percent: breakdown.gravel || 0 },
-            { type: 'dirt', percent: breakdown.dirt || 0 },
-            { type: 'singletrack', percent: breakdown.singletrack || 0 },
-            { type: 'unknown', percent: breakdown.unknown || 0 },
-          ].filter(s => s.percent > 0.1); // Only include surface types with > 0.1%
+          const surfaceTypes: Array<{ type: SurfaceType; percent: number }> = (
+            [
+              { type: 'pavement' as SurfaceType, percent: breakdown.pavement || 0 },
+              { type: 'gravel' as SurfaceType, percent: breakdown.gravel || 0 },
+              { type: 'dirt' as SurfaceType, percent: breakdown.dirt || 0 },
+              { type: 'singletrack' as SurfaceType, percent: breakdown.singletrack || 0 },
+              { type: 'unknown' as SurfaceType, percent: breakdown.unknown || 0 },
+            ] as Array<{ type: SurfaceType; percent: number }>
+          ).filter((s) => s.percent > 0.1); // Only include surface types with > 0.1%
           
           // Calculate cumulative distance for sub-segments
           let subSegmentStartDistance = segStartDistance;
@@ -163,9 +165,9 @@ export function useSurfaceEnrichment() {
               distanceMeters: subSegmentDistance,
               surfaceType: surfaceInfo.type,
               confidence,
-              matchDistanceMeters: null,
+              matchDistanceMeters: undefined,
               source: 'routing_api',
-              osmWayId: null,
+              osmWayId: undefined,
             });
             
             subSegmentStartDistance += subSegmentDistance;
@@ -188,7 +190,7 @@ export function useSurfaceEnrichment() {
           qualityMetrics: {
             coveragePercent: dataQuality,
             avgConfidence: segments.reduce((sum, s) => sum + s.confidence, 0) / segments.length || 0,
-            avgMatchDistanceMeters: null,
+            avgMatchDistanceMeters: undefined,
           },
           lastUpdated: new Date().toISOString(),
           enrichmentSource: 'routing_api',

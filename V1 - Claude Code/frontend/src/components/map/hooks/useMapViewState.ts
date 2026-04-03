@@ -53,7 +53,9 @@ function savePosition(position: PersistedMapPosition): void {
 }
 
 // Get initial position: saved position > route start > default
-function getInitialPosition(constraintsStart: { lng: number; lat: number } | null): PersistedMapPosition {
+function getInitialPosition(
+  constraintsStart: { lng: number; lat: number } | null | undefined,
+): PersistedMapPosition {
   const saved = loadSavedPosition();
   if (saved) {
     return saved;
@@ -181,11 +183,12 @@ export function useMapViewState() {
 
   // Jump to start location when constraints change (first load)
   const jumpToStart = useCallback(() => {
-    if (constraints.start) {
+    const start = constraints.start;
+    if (start) {
       setViewState((prev) => ({
         ...prev,
-        longitude: constraints.start.lng,
-        latitude: constraints.start.lat,
+        longitude: start.lng,
+        latitude: start.lat,
       }));
     }
   }, [constraints.start]);

@@ -88,8 +88,8 @@ const RouteLayer: React.FC = () => {
       
       // Map detailed surface types to simplified types (paved/unpaved/unknown)
       const simplifiedFeatures = features.map((feature) => {
-        const detailedSurfaceType = feature.properties.surfaceType;
-        const simplifiedType = mapSurfaceTypeToSimplified(detailedSurfaceType);
+        const detailedSurfaceType = feature.properties?.surfaceType;
+        const simplifiedType = mapSurfaceTypeToSimplified(detailedSurfaceType ?? 'unknown');
         return {
           ...feature,
           properties: {
@@ -104,10 +104,11 @@ const RouteLayer: React.FC = () => {
       let currentFeature: GeoJSON.Feature | null = null;
       
       for (const feature of simplifiedFeatures) {
-        const surfaceType = feature.properties.surfaceType as SimplifiedSurfaceType;
+        const surfaceType = feature.properties?.surfaceType as SimplifiedSurfaceType;
+        if (feature.geometry.type !== 'LineString') continue;
         const coords = feature.geometry.coordinates as number[][];
         
-        if (!currentFeature || currentFeature.properties.surfaceType !== surfaceType) {
+        if (!currentFeature || currentFeature.properties?.surfaceType !== surfaceType) {
           // Start a new merged feature
           if (currentFeature) {
             mergedFeatures.push(currentFeature);
@@ -120,6 +121,7 @@ const RouteLayer: React.FC = () => {
             },
           };
         } else {
+          if (currentFeature.geometry.type !== 'LineString') continue;
           // Merge with current feature - append coordinates (skip first point to avoid duplicates)
           const currentCoords = currentFeature.geometry.coordinates as number[][];
           const lastCoord = currentCoords[currentCoords.length - 1];

@@ -44,6 +44,13 @@ from app.schemas.route import (
 )
 from app.schemas.common import GeoJSONLineString, Coordinate
 from app.services.routing import get_routing_service
+from app.services.point_to_point_router_selection import (
+    haversine_endpoint_gap_meters,
+    is_two_point_long_segment,
+    is_unreasonable_detour,
+    route_score,
+)
+from app.api.routing_errors import http_exception_from_routing_error
 from app.services.analysis import get_analysis_service
 from app.services.validation import get_validation_service
 from app.services.route_metadata import get_route_metadata_service
@@ -478,23 +485,7 @@ async def generate_routes(
         # Generate candidates
         candidates = await routing_service.generate_route(constraints)
     except Exception as e:
-        error_msg = str(e)
-        if "401" in error_msg or "Unauthorized" in error_msg or "Invalid API" in error_msg.lower():
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid OpenRouteService API key. Please check your ORS_API_KEY in .env. Get a free key at https://openrouteservice.org/dev/#/signup"
-            )
-        elif "403" in error_msg or "Forbidden" in error_msg:
-            raise HTTPException(
-                status_code=403,
-                detail="OpenRouteService API access denied. Your API key may not have the required permissions."
-            )
-        elif "429" in error_msg or "rate limit" in error_msg.lower():
-            raise HTTPException(
-                status_code=429,
-                detail="OpenRouteService rate limit exceeded. Please wait and try again."
-            )
-        raise HTTPException(status_code=500, detail=f"Routing service error: {error_msg}")
+        raise http_exception_from_routing_error(e)
 
     if not candidates:
         raise HTTPException(status_code=400, detail="No routes could be generated with these constraints. Try adjusting the start location or distance.")
@@ -700,17 +691,8 @@ async def route_point_to_point(
                 # Check if 2-point segment exceeds 100 ft threshold
                 return len(geometry_coords) == 2 and route_direct_distance > MAX_STRAIGHT_LINE_DISTANCE_METERS
 
-            def _endpoint_gap_meters(geometry_coords: List[List[float]]) -> Optional[Dict[str, float]]:
-                if not geometry_coords or len(geometry_coords) < 2 or route_start is None or route_end is None:
-                    return None
-                start_gap = _haversine_distance_meters(route_start, geometry_coords[0])
-                end_gap = _haversine_distance_meters(route_end, geometry_coords[-1])
-                return {"start_gap": start_gap, "end_gap": end_gap, "total_gap": start_gap + end_gap}
-
-            def _is_unreasonable_detour(route_distance: float) -> bool:
-                if route_direct_distance is None or route_direct_distance < 20:
-                    return False
-                return route_distance > route_direct_distance * 1.6
+            def _is_unreasonable_detour_route(route_distance: float) -> bool:
+                return is_unreasonable_detour(route_distance, route_direct_distance)
 
             async def _try_brouter(profile: str) -> Dict[str, Any]:
                 result = await routing_service._call_brouter_interactive(route_coords, profile)
@@ -752,7 +734,9 @@ async def route_point_to_point(
                     result = await coro
                     parsed_candidates[name] = result
                     geometry_coords = result.get("geometry", {}).get("coordinates", [])
-                    gap_metrics = _endpoint_gap_meters(geometry_coords) or {}
+                    gap_metrics = haversine_endpoint_gap_meters(
+                        geometry_coords, route_start, route_end
+                    ) or {}
                     logger.info(
                         "route_attempt",
                         router=name,
@@ -782,21 +766,11 @@ async def route_point_to_point(
             await asyncio.gather(*tasks)
 
             def _route_score(candidate: Dict[str, Any]) -> float:
-                route_distance = candidate.get("distance_meters") or float("inf")
-                if route_direct_distance is None:
-                    return route_distance
                 geometry_coords = candidate.get("geometry", {}).get("coordinates", [])
-                gap_metrics = _endpoint_gap_meters(geometry_coords) or {}
-                ratio = route_distance / max(route_direct_distance, 1)
-                penalty = 0
-                if _is_unreasonable_detour(route_distance):
-                    penalty += route_distance * 0.5
-                if _is_two_point_long_segment(candidate.get("geometry", {}).get("coordinates", [])):
-                    penalty += route_distance * 2
-                total_gap = gap_metrics.get("total_gap", 0)
-                if total_gap > 1:
-                    penalty += total_gap * 20
-                return route_distance + penalty + ratio * 5
+                gap_metrics = haversine_endpoint_gap_meters(
+                    geometry_coords, route_start, route_end
+                )
+                return route_score(candidate, route_direct_distance, gap_metrics)
 
             if not parsed_candidates:
                 raise RuntimeError("All routers failed to produce a route")
@@ -809,7 +783,7 @@ async def route_point_to_point(
                 brouter_distance = brouter_candidate.get("distance_meters") or float("inf")
                 if ors_candidate:
                     ors_distance = ors_candidate.get("distance_meters") or float("inf")
-                    if _is_two_point_long_segment(ors_candidate.get("geometry", {}).get("coordinates", [])) or _is_unreasonable_detour(ors_distance):
+                    if _is_two_point_long_segment(ors_candidate.get("geometry", {}).get("coordinates", [])) or _is_unreasonable_detour_route(ors_distance):
                         parsed = brouter_candidate
                     elif request.sport_type == SportType.ROAD and brouter_distance <= ors_distance * 1.1:
                         parsed = brouter_candidate
