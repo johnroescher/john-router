@@ -1,4 +1,10 @@
-"""AI Copilot wrapper for the Ride Brief Loop."""
+"""
+DEPRECATED: Legacy AI Copilot.
+
+Production chat flow uses RideBriefLoopService (ride_brief_loop.py).
+AICopilotService is retained for reference but should not be imported
+in new code. The wrapper class at the top raises RuntimeError if called.
+"""
 from __future__ import annotations
 
 from typing import List, Optional

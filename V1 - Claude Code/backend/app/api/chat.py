@@ -1200,12 +1200,14 @@ async def _build_chat_response(
         recommendation = f"Top pick: {label} ({top.recommendation})."
 
     prompt_reference = _build_prompt_reference(request)
+    intent_summary = f"{planning.intent.hard_constraints.discipline} {planning.intent.hard_constraints.route_type}"
     message_lines = [
         summary.one_liner,
         " / ".join(summary.bullets),
         "",
         f"Candidates: {candidate_labels or 'none'}",
         recommendation,
+        f"Routing: {intent_summary} | {len(planning.candidates)} candidates | status: {planning.status}",
     ]
 
     route_candidates = await _build_route_candidates(planning)

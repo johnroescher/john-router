@@ -63,15 +63,15 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 ### Current technical reality
 
 - **Primary chat path:** `RideBriefLoopService` (`ride_brief_loop.py`) — intent → brief → strategies → candidates → **optional** parallel **evaluation / improvement** with **knowledge chunks** and **feature flags** (e.g. `route_improvement`).
-- **Legacy tool-calling:** Large `ai_copilot.py` still contains tool definitions and `_generate_route` logic used in some flows; **wrapper** at top marks old `chat` as deprecated — **consolidation** is a P2 engineering task to avoid two truths.
+- **Legacy tool-calling:** `ai_copilot.py` is now **marked DEPRECATED** (module docstring). The wrapper raises `RuntimeError` on `.chat()`; the legacy body (~2 000 lines) is retained for reference only. `chat.py` and all new code use `get_ride_brief_service()`.
 - **Chat API:** `chat.py` uses timeout + fallback when planning fails or returns no candidates.
 
 ### P2 workstreams
 
-1. **Prompt + schema hardening** — Intent JSON and LLM-generated specs (`_llm_json` in `_compose_candidates`) need **validation**, retries, and **refusal** when parse fails.
-2. **Single planning brain** — Make Ride Brief Loop the only production path; trim or gate duplicate copilot logic.
+1. **Prompt + schema hardening** — **Done (partial):** `_extract_intent` rejects non-dict LLM returns early with `_fallback_intent`; validation failure catch already existed. Remaining: `_compose_candidates` LLM spec parsing could use the same guard.
+2. **Single planning brain** — **Done:** `ai_copilot.py` deprecated; `chat.py` only calls `get_ride_brief_service()`.
 3. **Evaluation loop discipline** — When `route_improvement` is on, define **max latency** and **max LLM calls** per request.
-4. **Transparency** — Final user message lists: intent summary, router/surface confidence, and what was improved (VP Design copy).
+4. **Transparency** — **Done (v1):** Chat messages include a `Routing: {discipline} {route_type} | N candidates | status` line in the response when `response_generation` feature flag is off. When `response_generation` replaces the message, that line is superseded by the generated text.
 
 ### P2 success metrics
 
@@ -112,3 +112,4 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 - **2026-04-03:** Program created from codebase audit and executive priorities (P1 routing, P2 LLM).
 - **2026-04-03:** Added `ROUTER_POLICY_MATRIX.md` and P2P API observability fields (`router_used`, `surface_source`, `fallback_reason`).
 - **2026-04-03:** `/routes/generate` candidates include the same observability fields; ORS parses include `source`; AUTO fallbacks tag `fallback_reason`; expanded golden tests + `candidate_routing_observability` helper.
+- **2026-04-03:** P2 batch: ai_copilot.py deprecated; intent parsing non-dict guard; chat transparency line; golden tests for road/MTB/flat/steep (81 total).

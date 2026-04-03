@@ -493,14 +493,19 @@ Current route context: {json.dumps(request.current_route_geometry or [])}{prefer
                 self._llm_json(prompt),
                 timeout=35.0,  # Slightly longer than _llm_json timeout
             )
-            if isinstance(payload, dict):
-                payload.setdefault("intent_id", str(uuid4()))
-                payload.setdefault("timestamp", datetime.utcnow().isoformat())
-                payload.setdefault("source", {
-                    "raw_text": request.message,
-                    "conversation_id": request.conversation_id,
-                    "turn_id": "1",
-                })
+            if not isinstance(payload, dict):
+                logger.warning(
+                    "llm_intent_parse_non_dict",
+                    payload_type=type(payload).__name__,
+                )
+                return self._fallback_intent(request, context=context)
+            payload.setdefault("intent_id", str(uuid4()))
+            payload.setdefault("timestamp", datetime.utcnow().isoformat())
+            payload.setdefault("source", {
+                "raw_text": request.message,
+                "conversation_id": request.conversation_id,
+                "turn_id": "1",
+            })
             intent = IntentObject.model_validate(payload)
             intent = await self._enhance_constraints(intent, request, user_preferences, knowledge_chunks)
             
