@@ -608,19 +608,35 @@ async def _build_fallback_response(
     source_line = source_messages.get(source, "")
 
     prompt_reference = _build_prompt_reference(request)
-    timeout_note = ""
-    if reason == "timeout":
-        timeout_note = (
-            "\n\nI went with the best route I could assemble before the clock buzzer. "
-            "Tell me what you like or want tweaked—I love quick feedback."
-        )
+    reason_messages = {
+        "timeout": (
+            "Route planning took too long. This usually means the area has complex trail networks. "
+            "Try a shorter distance or simpler start point."
+        ),
+        "no_candidates": (
+            "No routes matched your criteria. Try relaxing constraints (distance, surface, elevation) "
+            "or moving the start point."
+        ),
+        "no_route_data": (
+            "Planning completed but couldn't produce usable route geometry. "
+            "Try a different start location or sport type."
+        ),
+        "credit_balance": "AI planning is temporarily unavailable. Try again later or use manual route building.",
+        "error": (
+            "We hit an error while planning your route. Below is a fallback you can use—try again shortly "
+            "or adjust your start point and constraints."
+        ),
+    }
+    user_message = reason_messages.get(
+        reason, f"Route planning encountered an issue ({reason}). Try adjusting your request."
+    )
+    detail_note = f"\n\nNote: {note}" if note and reason == "error" else ""
 
-    fallback_note = f"\n\nNote: {note}" if note else ""
     message_text = (
+        f"{user_message}\n\n"
         f"{source_line} {route_quality}\n\n"
         f"{_format_route_summary(route_data, location_name)}"
-        f"{timeout_note}"
-        f"{fallback_note}\n\n"
+        f"{detail_note}\n\n"
         f"{prompt_reference}\n\n"
         f"{_build_follow_up_question(sport_type)}"
     )
@@ -726,7 +742,7 @@ async def send_message(
         if "credit balance" in message.lower():
             response = await _build_fallback_response(
                 request,
-                reason="error",
+                reason="credit_balance",
                 note="AI credit balance is too low; returned a fallback route.",
                 request_id=request_id,
             )
@@ -903,7 +919,7 @@ async def _stream_chat_response(
                 if "credit balance" in message.lower():
                     response = await _build_fallback_response(
                         request,
-                        reason="error",
+                        reason="credit_balance",
                         note="AI credit balance is too low; returned a fallback route.",
                         request_id=request_id,
                     )
@@ -1207,7 +1223,6 @@ async def _build_chat_response(
         "",
         f"Candidates: {candidate_labels or 'none'}",
         recommendation,
-        f"Routing: {intent_summary} | {len(planning.candidates)} candidates | status: {planning.status}",
     ]
 
     route_candidates = await _build_route_candidates(planning)
@@ -1265,6 +1280,10 @@ async def _build_chat_response(
                 segmented_surface=segmented_surface,
                 transition_segments=selected.transition_segments,
             )
+            routing_note = (
+                f"Routing: {intent_summary} | {len(planning.candidates)} candidate"
+                f"{'s' if len(planning.candidates) != 1 else ''} | status: {planning.status}"
+            )
             if is_feature_enabled("response_generation"):
                 try:
                     response_generator = get_response_generator()
@@ -1274,12 +1293,21 @@ async def _build_chat_response(
                         evaluation=evaluation,
                         original_request=request.message,
                     )
-                    message_lines = [message_text]
+                    message_lines = [message_text, "", routing_note]
                 except Exception as e:
                     logger.warning(f"Response generator failed: {e}", exc_info=True)
                     message_lines.append(_format_route_summary(route_data))
+                    message_lines.append(routing_note)
             else:
                 message_lines.append(_format_route_summary(route_data))
+                message_lines.append(routing_note)
+
+            if route_data and route_data.surface_breakdown:
+                unknown_pct = route_data.surface_breakdown.get("unknown", 0)
+                if unknown_pct > 50:
+                    message_lines.append(
+                        f"⚠ Surface data is {int(unknown_pct)}% unknown — verify trail conditions before riding."
+                    )
 
             if is_feature_enabled("proactive_suggestions") and evaluation:
                 try:

@@ -71,6 +71,7 @@ class RideBriefLoopService:
         import time
         start_ts = time.monotonic()
         planning_events: List[Dict[str, Any]] = []
+        llm_calls_used = 0
 
         async def _status(stage: str, message: str, progress: Optional[float] = None):
             if status_callback:
@@ -166,6 +167,8 @@ class RideBriefLoopService:
             candidates_total = 0
             max_iterations = 3
             max_candidates_total = 12
+            max_llm_calls = 8
+            max_planning_latency_s = 55.0
             status = "in_progress"
             selected_candidate_id = None
 
@@ -174,7 +177,15 @@ class RideBriefLoopService:
             critique = None
             candidates: List[CandidateRoute] = []
 
-            while iteration <= max_iterations and candidates_total < max_candidates_total:
+            while iteration <= max_iterations and candidates_total < max_candidates_total and llm_calls_used < max_llm_calls:
+                if (time.monotonic() - start_ts) > max_planning_latency_s:
+                    logger.warning(
+                        "planning_latency_cap_hit",
+                        elapsed_s=round(time.monotonic() - start_ts, 1),
+                        iteration=iteration,
+                        candidates=candidates_total,
+                    )
+                    break
                 if iteration > 1:
                     await _status("refining", f"Refining routes (iteration {iteration}/3)...", 0.3 + (iteration - 1) * 0.1)
                 
@@ -184,6 +195,7 @@ class RideBriefLoopService:
                 ingredients = await self._run_discovery(discovery_plan, brief, intent, _status)
                 await _status("generating_routes", "Generating route candidates...", 0.5)
                 candidates = await self._compose_candidates(intent, brief, ingredients, db, _status)
+                llm_calls_used += 1 + len(candidates)
                 candidates_total += len(candidates)
                 
                 # Evaluate and improve candidates before critique (if features enabled)
@@ -194,7 +206,13 @@ class RideBriefLoopService:
                     
                     user_prefs = context.user_preferences if context else None
                     knowledge = []  # Could retrieve knowledge here if needed
-                    
+
+                    import time as _time
+                    eval_start = _time.monotonic()
+                    MAX_EVAL_IMPROVE_SECONDS = 20.0
+                    MAX_LLM_CALLS_PER_REQUEST = 8
+                    llm_call_count = getattr(self, '_llm_call_count', 0)
+
                     if is_feature_enabled("parallel_processing"):
                         # Evaluate candidates in parallel
                         import asyncio
@@ -223,12 +241,21 @@ class RideBriefLoopService:
                                 logger.warning(f"Evaluation failed for candidate {cand.label}: {eval_result}")
                                 improved_tasks.append(_return_candidate(cand))
                             elif is_feature_enabled("route_improvement") and (eval_result.intent_match_score < 0.8 or eval_result.has_significant_issues()):
-                                improved_tasks.append(route_improver.improve_and_reevaluate(
-                                    route=cand,
-                                    evaluation=eval_result,
-                                    user_intent=intent,
-                                    knowledge_chunks=knowledge,
-                                ))
+                                elapsed = _time.monotonic() - eval_start
+                                llm_call_count += 1
+                                if elapsed > MAX_EVAL_IMPROVE_SECONDS:
+                                    logger.warning("eval_improve_time_budget_exceeded", elapsed_s=round(elapsed, 1))
+                                    improved_tasks.append(_return_candidate(cand))
+                                elif llm_call_count > MAX_LLM_CALLS_PER_REQUEST:
+                                    logger.warning("eval_improve_llm_budget_exceeded", calls=llm_call_count)
+                                    improved_tasks.append(_return_candidate(cand))
+                                else:
+                                    improved_tasks.append(route_improver.improve_and_reevaluate(
+                                        route=cand,
+                                        evaluation=eval_result,
+                                        user_intent=intent,
+                                        knowledge_chunks=knowledge,
+                                    ))
                             else:
                                 improved_tasks.append(_return_candidate(cand))
                         
@@ -258,16 +285,21 @@ class RideBriefLoopService:
                                 log_evaluation=True,
                             )
                             if is_feature_enabled("route_improvement") and (eval_result.intent_match_score < 0.8 or eval_result.has_significant_issues()):
-                                improved, _ = await route_improver.improve_and_reevaluate(
-                                    route=cand,
-                                    evaluation=eval_result,
-                                    user_intent=intent,
-                                    knowledge_chunks=knowledge,
-                                )
-                                # Replace in candidates list
-                                idx = candidates.index(cand)
-                                candidates[idx] = improved
+                                elapsed = _time.monotonic() - eval_start
+                                llm_call_count += 1
+                                if elapsed > MAX_EVAL_IMPROVE_SECONDS or llm_call_count > MAX_LLM_CALLS_PER_REQUEST:
+                                    logger.warning("eval_improve_budget_exceeded_sequential", elapsed_s=round(elapsed, 1), calls=llm_call_count)
+                                else:
+                                    improved, _ = await route_improver.improve_and_reevaluate(
+                                        route=cand,
+                                        evaluation=eval_result,
+                                        user_intent=intent,
+                                        knowledge_chunks=knowledge,
+                                    )
+                                    idx = candidates.index(cand)
+                                    candidates[idx] = improved
                 
+                llm_calls_used += 1
                 await _status("critiquing_routes", "Evaluating route quality...", 0.7)
                 critique = await self._critique_candidates(brief, candidates, _status)
 
@@ -339,6 +371,8 @@ class RideBriefLoopService:
                     failure_reason=result.failure_reason,
                     fallback_suggestion=result.fallback_suggestion,
                     stage_durations_ms=stage_durations,
+                    llm_calls_used=llm_calls_used,
+                    planning_latency_ms=int((time.monotonic() - start_ts) * 1000),
                 )
             except Exception as e:
                 logger.warning(f"Failed to log planning summary: {e}")
@@ -857,7 +891,16 @@ IngredientSet:
 """
             try:
                 payload = await self._llm_json(prompt)
-                llm_specs = payload if isinstance(payload, list) else []
+                if isinstance(payload, list):
+                    llm_specs = [s for s in payload if isinstance(s, dict)]
+                elif isinstance(payload, dict):
+                    llm_specs = [payload]
+                else:
+                    logger.warning(
+                        "llm_compose_specs_unexpected_type",
+                        payload_type=type(payload).__name__,
+                    )
+                    llm_specs = []
             except Exception as e:
                 logger.warning("Failed to parse candidate specs from LLM", error=str(e))
         

@@ -88,14 +88,14 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 
 ---
 
-## 30-day sequence (proposal)
+## 30-day sequence
 
-| Week | Focus |
-|------|--------|
-| 1 | P1: Golden routes + router matrix + fix top failures |
-| 2 | P1: Validation + surface edge cases; Design: confidence UI spec |
-| 3 | P2: Ride brief prompt/parse hardening; reduce duplicate copilot surface |
-| 4 | Integration: UAT pass, freeze V1 scope, bugfix-only |
+| Week | Plan | Actual (2026-04-03) |
+|------|--------|---------------------|
+| 1 | P1: Golden routes + router matrix + fix top failures | **Done.** `ROUTER_POLICY_MATRIX.md`; 12 golden tests (4 shapes × invariants); `router_used`/`surface_source`/`fallback_reason` on P2P + generate; ORS source tag; AUTO fallback reasons. |
+| 2 | P1: Validation + surface edge cases; Design: confidence UI | **Done (partial).** Surface-unknown >50% warning in chat; validation constraints + policies already in `validation.py`. Confidence UI spec deferred (needs Design). |
+| 3 | P2: Ride brief prompt/parse hardening; reduce duplicate copilot | **Done.** `ai_copilot.py` deprecated; `_extract_intent` non-dict guard; `_compose_candidates` LLM spec type guard; planning loop budget (max 8 LLM calls, 55s latency cap); chat routing transparency line; specific fallback messages per reason. |
+| 4 | Integration: UAT pass, freeze V1 scope, bugfix-only | **Pending.** |
 
 ---
 
@@ -113,3 +113,4 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 - **2026-04-03:** Added `ROUTER_POLICY_MATRIX.md` and P2P API observability fields (`router_used`, `surface_source`, `fallback_reason`).
 - **2026-04-03:** `/routes/generate` candidates include the same observability fields; ORS parses include `source`; AUTO fallbacks tag `fallback_reason`; expanded golden tests + `candidate_routing_observability` helper.
 - **2026-04-03:** P2 batch: ai_copilot.py deprecated; intent parsing non-dict guard; chat transparency line; golden tests for road/MTB/flat/steep (81 total).
+- **2026-04-03:** CPO sprint: `_compose_candidates` spec guard; planning loop budget (max_llm_calls=8, max_planning_latency_s=55); surface-unknown chat warning; specific fallback messages; `planning_summary` logs llm_calls_used + latency.
