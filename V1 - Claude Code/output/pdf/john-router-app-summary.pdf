@@ -1,0 +1,210 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2963 >>
+stream
+BT
+/F2 16 Tf
+1 0 0 1 54 740 Tm
+(John Router - App Summary) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 726 Tm
+(One-page overview based on repository evidence.) Tj
+ET
+BT
+/F2 12 Tf
+1 0 0 1 54 706 Tm
+(What it is) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 692 Tm
+(AI-powered cycling route builder that combines a chat-first planning) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 678 Tm
+(experience with professional-grade map editing tools for many ride) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 664 Tm
+(types.) Tj
+ET
+BT
+/F2 12 Tf
+1 0 0 1 54 644 Tm
+(Who it's for) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 630 Tm
+(Cyclists across disciplines \(road, gravel, mountain bike, urban,) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 616 Tm
+(bikepacking, endurance\) who want tailored route planning and analysis.) Tj
+ET
+BT
+/F2 12 Tf
+1 0 0 1 54 596 Tm
+(What it does) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 582 Tm
+(- Chat-first planning: describe a ride in natural language and) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 568 Tm
+(  generate a route.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 554 Tm
+(- Supports multiple disciplines with routing profiles and contextual) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 540 Tm
+(  intelligence.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 526 Tm
+(- Professional map editor with drag, lock, avoidance areas, and) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 512 Tm
+(  waypoint control.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 498 Tm
+(- Data-dense analysis: elevation, surface breakdowns, grade analysis,) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 484 Tm
+(  time estimates, confidence scores.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 470 Tm
+(- Quality mode: multi-step pipeline that generates and validates) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 456 Tm
+(  multiple candidates.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 442 Tm
+(- AI copilot for assistance during planning.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 428 Tm
+(- GPX export for generated routes.) Tj
+ET
+BT
+/F2 12 Tf
+1 0 0 1 54 408 Tm
+(How it works \(architecture\)) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 394 Tm
+(- Frontend: Next.js 14, TypeScript, MapLibre GL JS, MUI, Zustand.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 380 Tm
+(- Backend API: FastAPI \(Python 3.11, async\).) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 366 Tm
+(- Services: routing \(OpenRouteService\), analysis \(elevation/surface\),) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 352 Tm
+(  AI copilot \(Claude\), validation, GPX export.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 338 Tm
+(- Data/infra: PostgreSQL + PostGIS, Redis cache, Celery workers.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 324 Tm
+(- Flow: Frontend -> Backend API -> services -> Postgres/Redis/Celery.) Tj
+ET
+BT
+/F2 12 Tf
+1 0 0 1 54 304 Tm
+(How to run \(minimal\)) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 290 Tm
+(- Copy env template and set required keys: cp .env.example .env, then) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 276 Tm
+(  set ORS_API_KEY and ANTHROPIC_API_KEY.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 262 Tm
+(- Start services with Docker Compose: docker-compose up -d.) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 248 Tm
+(- Open the app: Frontend http://localhost:3000; Backend API) Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 54 234 Tm
+(  http://localhost:8000.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000003266 00000 n 
+0000003336 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3411
+%%EOF

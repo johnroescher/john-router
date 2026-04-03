@@ -1,0 +1,66 @@
+# OS
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node
+node_modules/
+.npm/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.pytype/
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+pip-log.txt
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE / editor
+.vscode/
+.idea/
+.cursor/
+.claude/
+*.swp
+
+# Playwright artifacts
+.playwright-mcp/
+playwright-report/
+test-results/
+
