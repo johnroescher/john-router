@@ -27,6 +27,7 @@ from app.schemas.route import (
     RouteConstraints,
     SportType,
     RouteCandidateResponse,
+    candidate_routing_observability,
     RouteAnalysis,
     RouteValidation,
     ValidationIssue,
@@ -581,6 +582,7 @@ async def generate_routes(
         # Generate explanation
         explanation = _generate_candidate_explanation(analysis, validation, i)
 
+        obs = candidate_routing_observability(candidate)
         responses.append(RouteCandidateResponse(
             route=route_response,
             analysis=analysis,
@@ -588,6 +590,9 @@ async def generate_routes(
             rank=i + 1,
             explanation=explanation,
             tradeoffs=_generate_tradeoffs(analysis, constraints),
+            router_used=obs["router_used"],
+            surface_source=obs["surface_source"],
+            fallback_reason=obs["fallback_reason"],
         ))
 
     # Order candidates based on constraint match (best first)
@@ -1512,6 +1517,9 @@ def _rank_candidates_by_constraints(
             rank=idx + 1,
             explanation=response.explanation,
             tradeoffs=response.tradeoffs,
+            router_used=response.router_used,
+            surface_source=response.surface_source,
+            fallback_reason=response.fallback_reason,
         ))
 
     return ranked

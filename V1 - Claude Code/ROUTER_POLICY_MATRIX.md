@@ -75,9 +75,11 @@ This path **does not** use `RouteConstraints` / `generate_route`. It:
 
 | Field | Where | Meaning |
 |-------|--------|---------|
-| `router_used` | `PointToPointResponse` | Which engine produced the chosen geometry (`ors`, `brouter`, or `graphhopper` if it ever wins). |
-| `surface_source` | `PointToPointResponse` | `valhalla_trace` when trace enriched; else `unknown` (or future sources). |
-| `fallback_reason` | `PointToPointResponse` | Reserved for AUTO fallback reasons; optional. |
+| `router_used` | `PointToPointResponse`, `RouteCandidateResponse` | Engine for the returned geometry: `ors`, `brouter`, `graphhopper`, `valhalla` (from candidate `source`). |
+| `surface_source` | Both | `valhalla_trace` when Valhalla trace enriched the route; else `unknown` if no `surface_info.source`. |
+| `fallback_reason` | Both | When present: `snap_recovery` (P2P), `auto_brouter_exception_to_ors`, `auto_brouter_empty_to_ors`, `surface_quality_ors_retry`. |
+
+**`/api/routes/generate`:** each `RouteCandidateResponse` includes the three fields, derived from the routing candidate dict via `candidate_routing_observability()` (`schemas/route.py`).
 
 Structured logs (`structlog`) also emit `route_attempt`, `route_candidate_metrics`, `valhalla_surface_attach_*`, and `route_point_to_point_success`.
 

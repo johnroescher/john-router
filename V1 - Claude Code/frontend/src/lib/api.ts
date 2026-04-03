@@ -484,6 +484,9 @@ class ApiClient {
       rank: data.rank,
       explanation: data.explanation,
       tradeoffs: data.tradeoffs || {},
+      routerUsed: data.router_used ?? undefined,
+      surfaceSource: data.surface_source ?? undefined,
+      fallbackReason: data.fallback_reason ?? undefined,
     };
   }
 

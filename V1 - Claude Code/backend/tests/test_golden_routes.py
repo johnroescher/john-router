@@ -8,7 +8,12 @@ import pytest
 
 from app.services.analysis import RouteAnalysisService
 from app.services.validation import RouteValidationService
-from app.schemas.route import RouteConstraints, SportType, RouteType
+from app.schemas.route import (
+    RouteConstraints,
+    SportType,
+    RouteType,
+    candidate_routing_observability,
+)
 from app.schemas.common import Coordinate
 
 
@@ -60,3 +65,45 @@ async def test_golden_loop_validation_runs(golden_geometry):
         constraints=constraints,
     )
     assert result.status in ("valid", "warnings", "errors")
+
+
+@pytest.mark.asyncio
+async def test_golden_surface_breakdown_sums_to_full_scale(golden_geometry):
+    """Surface buckets are normalized to a 0–100 scale (sum ≈ 100)."""
+    service = RouteAnalysisService()
+    analysis = await service.analyze_route(golden_geometry, routing_data={}, segment_metadata=[])
+    sb = analysis.surface_breakdown
+    total = sb.pavement + sb.gravel + sb.dirt + sb.singletrack + sb.unknown
+    assert 99.0 <= total <= 101.0
+
+
+@pytest.mark.asyncio
+async def test_golden_elevation_profile_monotonic_distance(golden_geometry):
+    """Elevation profile distances are non-decreasing along the route."""
+    service = RouteAnalysisService()
+    analysis = await service.analyze_route(golden_geometry, routing_data={}, segment_metadata=[])
+    distances = [p.distance_meters for p in analysis.elevation_profile]
+    for i in range(1, len(distances)):
+        assert distances[i] >= distances[i - 1] - 1e-6
+
+
+@pytest.mark.asyncio
+async def test_golden_max_grade_sane(golden_geometry):
+    """Max grade stays within the clamp used for display / validation."""
+    service = RouteAnalysisService()
+    analysis = await service.analyze_route(golden_geometry, routing_data={}, segment_metadata=[])
+    assert -40.0 <= analysis.max_grade_percent <= 40.0
+
+
+def test_candidate_routing_observability_maps_engine_and_surface():
+    obs = candidate_routing_observability(
+        {"source": "ORS", "surface_info": {"source": "valhalla_trace"}, "fallback_reason": "x"}
+    )
+    assert obs["router_used"] == "ors"
+    assert obs["surface_source"] == "valhalla_trace"
+    assert obs["fallback_reason"] == "x"
+
+    obs2 = candidate_routing_observability({"geometry": {}})
+    assert obs2["router_used"] is None
+    assert obs2["surface_source"] == "unknown"
+    assert obs2["fallback_reason"] is None

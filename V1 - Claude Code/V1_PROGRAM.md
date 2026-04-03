@@ -48,7 +48,7 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 1. **Router policy matrix** — **Done:** [`ROUTER_POLICY_MATRIX.md`](./ROUTER_POLICY_MATRIX.md) (`sport_type` × `route_type` × engine, P2P specifics, env keys).
 2. **Golden routes** — Versioned fixtures (GeoJSON + expected bands for distance, surface %, max grade). Run in pytest or smoke script.
 3. **Failure taxonomy** — Classify: no candidates, degraded surface, validation hard-fail, timeout; map each to **user-visible** messages (VP Design).
-4. **Observability** — Structured logs + `POST /api/routes/point-to-point` returns `router_used`, `surface_source`, `fallback_reason` where applicable; extend `generate` responses next if needed.
+4. **Observability** — Structured logs + **`/routes/point-to-point`** and **`/routes/generate`** return `router_used`, `surface_source`, `fallback_reason` (see `ROUTER_POLICY_MATRIX.md`).
 
 ### P1 success metrics
 
@@ -111,3 +111,4 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 
 - **2026-04-03:** Program created from codebase audit and executive priorities (P1 routing, P2 LLM).
 - **2026-04-03:** Added `ROUTER_POLICY_MATRIX.md` and P2P API observability fields (`router_used`, `surface_source`, `fallback_reason`).
+- **2026-04-03:** `/routes/generate` candidates include the same observability fields; ORS parses include `source`; AUTO fallbacks tag `fallback_reason`; expanded golden tests + `candidate_routing_observability` helper.

@@ -94,7 +94,10 @@ class TestRoutingEndpoints:
                         "geometry": {
                             "type": "LineString",
                             "coordinates": [[-105.0, 39.7], [-105.01, 39.71]],
-                        }
+                        },
+                        "source": "brouter",
+                        "surface_info": {"source": "valhalla_trace"},
+                        "fallback_reason": "auto_brouter_exception_to_ors",
                     }
                 ]
             )
@@ -117,6 +120,9 @@ class TestRoutingEndpoints:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) == 1
+        assert data[0]["router_used"] == "brouter"
+        assert data[0]["surface_source"] == "valhalla_trace"
+        assert data[0]["fallback_reason"] == "auto_brouter_exception_to_ors"
 
     def test_generate_route_missing_start(self, client):
         """Test route generation with missing start point."""

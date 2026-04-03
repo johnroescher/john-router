@@ -1114,9 +1114,9 @@ class RoutingService:
                     if selected_service != RoutingServiceType.AUTO:
                         raise
                     logger.warning(f"BRouter direct route failed: {e}, falling back to ORS")
-                    candidates.append(
-                        await self._generate_direct_route(constraints, ors_profile, ors_options)
-                    )
+                    ors_direct = await self._generate_direct_route(constraints, ors_profile, ors_options)
+                    ors_direct["fallback_reason"] = "auto_brouter_exception_to_ors"
+                    candidates.append(ors_direct)
             else:
                 candidates.append(
                     await self._generate_direct_route(constraints, ors_profile, ors_options)
@@ -1139,9 +1139,9 @@ class RoutingService:
                     if selected_service != RoutingServiceType.AUTO:
                         raise
                     logger.warning(f"BRouter out-and-back failed: {e}, falling back to ORS")
-                    candidates.append(
-                        await self._generate_out_and_back(constraints, ors_profile, ors_options)
-                    )
+                    ors_oab = await self._generate_out_and_back(constraints, ors_profile, ors_options)
+                    ors_oab["fallback_reason"] = "auto_brouter_exception_to_ors"
+                    candidates.append(ors_oab)
             else:
                 candidates.append(
                     await self._generate_out_and_back(constraints, ors_profile, ors_options)
@@ -1191,6 +1191,8 @@ class RoutingService:
                         loop_candidates = await self._generate_loop_candidates(
                             constraints, ors_profile, ors_options, num_candidates=constraints.num_alternatives
                         )
+                        for lc in loop_candidates:
+                            lc["fallback_reason"] = "auto_brouter_empty_to_ors"
                         if loop_candidates:
                             logger.info(f"ORS fallback succeeded with {len(loop_candidates)} candidates")
                         else:
@@ -1400,6 +1402,7 @@ class RoutingService:
 
                     # Validate ORS candidates
                     for candidate in ors_candidates:
+                        candidate["fallback_reason"] = "surface_quality_ors_retry"
                         is_valid, reason = self._validate_surface_data_quality(candidate, max_unknown_pct)
                         if is_valid:
                             valid_candidates.append(candidate)
@@ -1963,6 +1966,7 @@ class RoutingService:
             "instructions": [
                 step for seg in segments for step in seg.get("steps", [])
             ],
+            "source": "ors",
         }
 
     def _parse_ors_surface(self, surface_info: Dict[str, Any], total_distance: float) -> Dict[str, float]:

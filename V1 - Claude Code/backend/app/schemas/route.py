@@ -1,6 +1,6 @@
 """Route-related schemas."""
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Mapping
 from uuid import UUID
 from enum import Enum
 
@@ -423,6 +423,27 @@ class RouteCandidateResponse(BaseModel):
     rank: int
     explanation: str
     tradeoffs: Dict[str, str]
+    # Observability (V1 P1): from routing engine candidate dict; see ROUTER_POLICY_MATRIX.md
+    router_used: Optional[str] = None
+    surface_source: Optional[str] = None
+    fallback_reason: Optional[str] = None
+
+
+def candidate_routing_observability(candidate: Mapping[str, Any]) -> Dict[str, Optional[str]]:
+    """Derive router_used / surface_source / fallback_reason for API responses."""
+    raw = candidate.get("source")
+    router_used = raw.lower() if isinstance(raw, str) else None
+    si = candidate.get("surface_info")
+    surface_source = None
+    if isinstance(si, dict):
+        surface_source = si.get("source")
+    if not surface_source:
+        surface_source = "unknown"
+    return {
+        "router_used": router_used,
+        "surface_source": surface_source,
+        "fallback_reason": candidate.get("fallback_reason"),
+    }
 
 
 class GPXExport(BaseModel):

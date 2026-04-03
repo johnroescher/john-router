@@ -479,4 +479,10 @@ export interface RouteCandidate {
   rank: number;
   explanation: string;
   tradeoffs: Record<string, string>;
+  /** Routing engine that produced geometry (ors, brouter, graphhopper, valhalla) */
+  routerUsed?: string | null;
+  /** e.g. valhalla_trace or unknown */
+  surfaceSource?: string | null;
+  /** When AUTO/surface fallback changed engine */
+  fallbackReason?: string | null;
 }
