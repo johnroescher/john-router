@@ -15,7 +15,7 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 
 | Criterion | Evidence |
 |-----------|----------|
-| **Routing** | Golden-set scenarios pass in CI or scripted checks; surface/elevation/validation agree with manual review for a defined region set |
+| **Routing** | Golden-set scenarios pass in CI or scripted checks; surface/elevation/validation agree with manual review US-wide |
 | **Routers** | Documented engine policy per `sport_type` + `routing_service`; Stadia/Valhalla key present where surface trace is required; fallbacks logged and tested |
 | **Chat planning** | Ride Brief Loop completes under timeout for standard prompts; no silent empty routes without user-visible explanation |
 | **Quality bar** | Inspector shows **confidence + warnings** where data is thin; user never thinks a bad route is “blessed” |
@@ -68,10 +68,10 @@ V1 is **not** every idea in `PRODUCT_DOCUMENTATION.md`. It is a **shippable prod
 
 ### P2 workstreams
 
-1. **Prompt + schema hardening** — **Done (partial):** `_extract_intent` rejects non-dict LLM returns early with `_fallback_intent`; validation failure catch already existed. Remaining: `_compose_candidates` LLM spec parsing could use the same guard.
-2. **Single planning brain** — **Done:** `ai_copilot.py` deprecated; `chat.py` only calls `get_ride_brief_service()`.
-3. **Evaluation loop discipline** — When `route_improvement` is on, define **max latency** and **max LLM calls** per request.
-4. **Transparency** — **Done (v1):** Chat messages include a `Routing: {discipline} {route_type} | N candidates | status` line in the response when `response_generation` feature flag is off. When `response_generation` replaces the message, that line is superseded by the generated text.
+1. **Prompt + schema hardening** — **Done.** `_extract_intent` rejects non-dict LLM returns; `_compose_candidates` filters non-dict items from LLM spec arrays.
+2. **Single planning brain** — **Done.** `ai_copilot.py` deprecated; `chat.py` only calls `get_ride_brief_service()`.
+3. **Evaluation loop discipline** — **Done.** 55s latency cap (UX). LLM call cap removed per CEO decision (no budget constraint). Planning summary logs `llm_calls_used` and `planning_latency_ms` for monitoring.
+4. **Transparency** — **Done.** Routing note always appended (even with `response_generation`). Surface-unknown >50% warning. Reason-specific fallback messages.
 
 ### P2 success metrics
 

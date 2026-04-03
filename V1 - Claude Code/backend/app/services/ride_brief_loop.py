@@ -167,7 +167,6 @@ class RideBriefLoopService:
             candidates_total = 0
             max_iterations = 3
             max_candidates_total = 12
-            max_llm_calls = 8
             max_planning_latency_s = 55.0
             status = "in_progress"
             selected_candidate_id = None
@@ -177,7 +176,7 @@ class RideBriefLoopService:
             critique = None
             candidates: List[CandidateRoute] = []
 
-            while iteration <= max_iterations and candidates_total < max_candidates_total and llm_calls_used < max_llm_calls:
+            while iteration <= max_iterations and candidates_total < max_candidates_total:
                 if (time.monotonic() - start_ts) > max_planning_latency_s:
                     logger.warning(
                         "planning_latency_cap_hit",

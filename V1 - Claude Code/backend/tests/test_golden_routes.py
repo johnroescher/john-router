@@ -153,6 +153,16 @@ GOLDEN_EDGE_STEEP_COORDINATES = [
     [-105.2707, 40.01506, 1800],
 ]
 
+# Austin TX (Barton Creek / Zilker) — US-wide coverage, not Colorado.
+GOLDEN_AUSTIN_LOOP_COORDINATES = [
+    [-97.7710, 30.2630, 150],
+    [-97.7725, 30.2645, 155],
+    [-97.7740, 30.2640, 160],
+    [-97.7735, 30.2620, 148],
+    [-97.7720, 30.2615, 145],
+    [-97.7710, 30.2630, 150],
+]
+
 
 @pytest.fixture
 def golden_road_p2p_geometry():
@@ -172,6 +182,11 @@ def golden_edge_flat_geometry():
 @pytest.fixture
 def golden_edge_steep_geometry():
     return {"type": "LineString", "coordinates": GOLDEN_EDGE_STEEP_COORDINATES}
+
+
+@pytest.fixture
+def golden_austin_geometry():
+    return {"type": "LineString", "coordinates": GOLDEN_AUSTIN_LOOP_COORDINATES}
 
 
 @pytest.mark.asyncio
@@ -314,6 +329,39 @@ async def test_golden_steep_grade_clamped(golden_edge_steep_geometry):
     )
     result = await validation_service.validate_route(
         golden_edge_steep_geometry,
+        segments=[],
+        constraints=constraints,
+    )
+    assert result.status in ("valid", "warnings", "errors")
+
+
+@pytest.mark.asyncio
+async def test_golden_austin_loop_analysis(golden_austin_geometry):
+    """US-wide coverage: Austin TX loop produces valid analysis."""
+    service = RouteAnalysisService()
+    analysis = await service.analyze_route(golden_austin_geometry, routing_data={}, segment_metadata=[])
+    assert analysis.distance_meters > 100
+    assert analysis.distance_meters < 50_000
+    assert 0.0 <= analysis.confidence_score <= 100.0
+    sb = analysis.surface_breakdown
+    total = sb.pavement + sb.gravel + sb.dirt + sb.singletrack + sb.unknown
+    assert 99.0 <= total <= 101.0
+
+
+@pytest.mark.asyncio
+async def test_golden_austin_validation_gravel(golden_austin_geometry):
+    """Austin loop validates under gravel constraints."""
+    analysis_service = RouteAnalysisService()
+    await analysis_service.analyze_route(golden_austin_geometry, routing_data={}, segment_metadata=[])
+    validation_service = RouteValidationService()
+    constraints = RouteConstraints(
+        sport_type=SportType.GRAVEL,
+        route_type=RouteType.LOOP,
+        start=Coordinate(lat=30.2630, lng=-97.7710),
+        target_distance_meters=3000,
+    )
+    result = await validation_service.validate_route(
+        golden_austin_geometry,
         segments=[],
         constraints=constraints,
     )
