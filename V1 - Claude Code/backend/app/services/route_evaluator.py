@@ -4,9 +4,7 @@ from uuid import UUID
 import json
 
 import structlog
-from anthropic import AsyncAnthropic
 
-from app.core.config import settings
 from app.schemas.evaluation import RouteEvaluation, IntentGap, Weakness, ImprovementOpportunity
 from app.schemas.planning import IntentObject, CandidateRoute
 from app.schemas.user_context import UserPreferences
@@ -20,8 +18,9 @@ class RouteEvaluator:
     """Service for evaluating routes against user intent and quality criteria."""
 
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
-        self.model = "claude-sonnet-4-20250514"
+        from app.services.llm_client import get_llm_client, get_llm_model
+        self.client = get_llm_client()
+        self.model = get_llm_model()
 
     async def evaluate_route_against_intent(
         self,
@@ -272,13 +271,15 @@ Focus on:
 - Specific, actionable improvements
 """
 
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
 
-            text = response.content[0].text if response.content else "{}"
+            text = response.choices[0].message.content if response.choices else "{}"
             # Extract JSON from response
             cleaned = self._extract_json(text)
             llm_eval = json.loads(cleaned)

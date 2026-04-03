@@ -13,10 +13,8 @@ Based on:
 - Pre-Act: Multi-Step Planning and Reasoning (2025)
 """
 from typing import Dict, Any, List, Optional
-from anthropic import AsyncAnthropic
 import structlog
 
-from app.core.config import settings
 from app.schemas.route import RouteConstraints, SportType
 from app.schemas.common import Coordinate
 from app.services.trail_database import get_trail_database
@@ -38,8 +36,9 @@ class IntelligentRoutePlanner:
     """
 
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
-        self.model = "claude-sonnet-4-20250514"
+        from app.services.llm_client import get_llm_client, get_llm_model
+        self.client = get_llm_client()
+        self.model = get_llm_model()
 
     async def plan_route(
         self,
@@ -122,15 +121,17 @@ Return a JSON object with:
 Think like a human rider planning their own ride."""
 
         if self.client:
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
 
             import json
             try:
-                return json.loads(response.content[0].text)
+                return json.loads(response.choices[0].message.content)
             except Exception:
                 pass
 
@@ -195,15 +196,17 @@ Return JSON:
 
         mentioned = {"trail_systems": [], "specific_trails": [], "geographic_areas": []}
         if self.client:
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=512,
                 messages=[{"role": "user", "content": context_prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
 
             import json
             try:
-                mentioned = json.loads(response.content[0].text)
+                mentioned = json.loads(response.choices[0].message.content)
             except Exception:
                 mentioned = {"trail_systems": [], "specific_trails": [], "geographic_areas": []}
 
@@ -307,15 +310,17 @@ Be specific and actionable."""
 
         analysis = None
         if self.client:
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
 
             import json
             try:
-                analysis = json.loads(response.content[0].text)
+                analysis = json.loads(response.choices[0].message.content)
             except Exception:
                 analysis = None
 

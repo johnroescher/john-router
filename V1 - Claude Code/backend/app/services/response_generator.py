@@ -3,9 +3,7 @@ from typing import Optional, List, Dict, Any
 import json
 
 import structlog
-from anthropic import AsyncAnthropic
 
-from app.core.config import settings
 from app.schemas.planning import CandidateRoute, PlanningLoopResult, IntentObject
 from app.schemas.evaluation import RouteEvaluation
 from app.schemas.knowledge import KnowledgeChunk
@@ -18,8 +16,9 @@ class ResponseGenerator:
     """Service for generating conversational, friendly responses."""
 
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
-        self.model = "claude-sonnet-4-20250514"
+        from app.services.llm_client import get_llm_client, get_llm_model
+        self.client = get_llm_client()
+        self.model = get_llm_model()
 
     async def generate_route_response(
         self,
@@ -95,13 +94,15 @@ Write a friendly, first-person response (use "I") that:
 Keep it concise (2-3 sentences) and conversational. Don't be overly technical.
 """
 
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=500,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
 
-            text = response.content[0].text if response.content else ""
+            text = response.choices[0].message.content if response.choices else ""
             
             # Add proactive suggestions if available
             if evaluation:
@@ -162,13 +163,15 @@ Write a friendly response that:
 Use first person ("I"). Keep it conversational and helpful.
 """
 
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=800,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
 
-            text = response.content[0].text if response.content else ""
+            text = response.choices[0].message.content if response.choices else ""
             return text.strip()
         except Exception as e:
             logger.warning(f"Multi-route response generation failed: {e}", exc_info=True)

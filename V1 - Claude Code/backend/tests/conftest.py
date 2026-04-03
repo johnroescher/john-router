@@ -114,6 +114,7 @@ def mock_planning_tools(monkeypatch):
 
     try:
         from app.core.config import settings
+        settings.nvidia_api_key = None
         settings.anthropic_api_key = None
         settings.openai_api_key = None
         settings.trailforks_api_key = None
@@ -293,35 +294,22 @@ def mock_ors_response():
 
 
 @pytest.fixture
-def mock_anthropic_response():
-    """Create a mock Anthropic API response."""
+def mock_llm_response():
+    """Create a mock OpenAI-compatible LLM response (NVIDIA NIM)."""
+    mock_choice = MagicMock()
+    mock_choice.message = MagicMock()
+    mock_choice.message.content = "I'll help you plan a great MTB route!"
     mock_response = MagicMock()
-    mock_response.content = [
-        MagicMock(
-            type="text",
-            text="I'll help you plan a great MTB route!",
-        )
-    ]
-    mock_response.stop_reason = "end_turn"
+    mock_response.choices = [mock_choice]
     return mock_response
 
 
 @pytest.fixture
-def mock_anthropic_tool_response():
-    """Create a mock Anthropic API response with tool use."""
+def mock_llm_json_response():
+    """Create a mock OpenAI-compatible LLM response returning JSON."""
+    mock_choice = MagicMock()
+    mock_choice.message = MagicMock()
+    mock_choice.message.content = '{"sport_type": "mtb", "route_type": "loop"}'
     mock_response = MagicMock()
-    mock_response.content = [
-        MagicMock(
-            type="tool_use",
-            id="tool-123",
-            name="generate_route",
-            input={
-                "start": {"lat": 39.7, "lng": -105.0},
-                "sport_type": "mtb",
-                "route_type": "loop",
-                "target_distance_meters": 16000,
-            },
-        )
-    ]
-    mock_response.stop_reason = "tool_use"
+    mock_response.choices = [mock_choice]
     return mock_response

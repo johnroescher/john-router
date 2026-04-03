@@ -9,8 +9,6 @@ from app.schemas.evaluation import RouteEvaluation, Weakness
 from app.services.route_evaluator import get_route_evaluator
 from app.services.route_improver import get_route_improver
 from app.services.planning_tools import route_generate, route_analyze, route_validate, geocode_place
-from anthropic import AsyncAnthropic
-from app.core.config import settings
 
 logger = structlog.get_logger()
 
@@ -19,8 +17,9 @@ class RouteModifier:
     """Service for modifying existing routes based on chat requests."""
 
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
-        self.model = "claude-sonnet-4-20250514"
+        from app.services.llm_client import get_llm_client, get_llm_model
+        self.client = get_llm_client()
+        self.model = get_llm_model()
 
     async def modify_route(
         self,
@@ -202,12 +201,14 @@ Return ONLY valid JSON with these fields:
 User request: "{modification_request}"
 """
         try:
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=400,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
-            text = response.content[0].text if response.content else ""
+            text = response.choices[0].message.content if response.choices else ""
             payload = json.loads(self._extract_json(text))
             return payload if isinstance(payload, dict) else None
         except Exception as e:

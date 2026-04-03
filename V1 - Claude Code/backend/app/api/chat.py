@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 import structlog
-import anthropic
+import openai
 
 from app.core.database import get_db
 from app.models.chat import ChatConversation
@@ -737,7 +737,7 @@ async def send_message(
     except asyncio.TimeoutError:
         logger.warning("Chat planning timed out; returning fallback route")
         response = await _build_fallback_response(request, reason="timeout", request_id=request_id)
-    except anthropic.BadRequestError as e:
+    except openai.BadRequestError as e:
         message = str(e)
         if "credit balance" in message.lower():
             response = await _build_fallback_response(
@@ -753,7 +753,7 @@ async def send_message(
                 note=f"AI request error: {message}",
                 request_id=request_id,
             )
-    except anthropic.AuthenticationError:
+    except openai.AuthenticationError:
         response = await _build_fallback_response(
             request,
             reason="error",
@@ -914,7 +914,7 @@ async def _stream_chat_response(
                 logger.warning("Chat planning timed out; returning fallback route")
                 response = await _build_fallback_response(request, reason="timeout", request_id=request_id)
                 await status_queue.put(("response", response))
-            except anthropic.BadRequestError as e:
+            except openai.BadRequestError as e:
                 message = str(e)
                 if "credit balance" in message.lower():
                     response = await _build_fallback_response(
@@ -931,7 +931,7 @@ async def _stream_chat_response(
                         request_id=request_id,
                     )
                 await status_queue.put(("response", response))
-            except anthropic.AuthenticationError:
+            except openai.AuthenticationError:
                 response = await _build_fallback_response(
                     request,
                     reason="error",

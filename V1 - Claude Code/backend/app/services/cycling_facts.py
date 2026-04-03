@@ -8,9 +8,6 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 import structlog
-from anthropic import AsyncAnthropic
-
-from app.core.config import settings
 
 logger = structlog.get_logger()
 
@@ -19,8 +16,9 @@ class CyclingFactsService:
     """Generates short cycling facts and caches them briefly."""
 
     def __init__(self) -> None:
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
-        self.model = "claude-3-5-haiku-latest"
+        from app.services.llm_client import get_llm_client, get_llm_model
+        self.client = get_llm_client()
+        self.model = get_llm_model()
         self._cache_facts: List[str] = []
         self._cache_expires_at: Optional[datetime] = None
         self._lock = asyncio.Lock()
@@ -52,12 +50,14 @@ class CyclingFactsService:
         )
 
         try:
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=300,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
-            text = response.content[0].text if response.content else ""
+            text = response.choices[0].message.content if response.choices else ""
             facts = self._parse_facts(text)
             if not facts:
                 return fallback[:count]

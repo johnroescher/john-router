@@ -3,9 +3,7 @@ from typing import Optional, List, Dict, Any
 import json
 
 import structlog
-from anthropic import AsyncAnthropic
 
-from app.core.config import settings
 from app.schemas.planning import CandidateRoute
 from app.schemas.evaluation import RouteEvaluation, IntentGap, Weakness
 from app.schemas.planning import IntentObject
@@ -19,8 +17,9 @@ class RouteImprover:
     """Service for automatically improving routes based on evaluation results."""
 
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
-        self.model = "claude-sonnet-4-20250514"
+        from app.services.llm_client import get_llm_client, get_llm_model
+        self.client = get_llm_client()
+        self.model = get_llm_model()
 
     async def improve_route(
         self,
@@ -477,13 +476,15 @@ Return ONLY valid JSON array:
 ]
 """
 
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=1000,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=1.0,
             )
 
-            text = response.content[0].text if response.content else "[]"
+            text = response.choices[0].message.content if response.choices else "[]"
             cleaned = self._extract_json(text)
             suggestions = json.loads(cleaned)
             

@@ -35,14 +35,14 @@ async def services_health():
     services = {}
 
     # Check if API keys are configured
-    services["anthropic"] = "configured" if settings.anthropic_api_key else "not_configured"
+    services["nvidia_llm"] = "configured" if settings.nvidia_api_key else "not_configured"
     services["ors"] = "configured" if settings.ors_api_key else "not_configured"
     services["mapbox"] = "configured" if settings.mapbox_access_token else "not_configured"
 
     all_configured = all(
         v in ["configured", True]
         for k, v in services.items()
-        if k in ["anthropic", "ors"]
+        if k in ["nvidia_llm", "ors"]
     )
 
     return {

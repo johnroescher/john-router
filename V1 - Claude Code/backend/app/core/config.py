@@ -29,6 +29,7 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.cors_origins.split(",")]
 
     # API Keys
+    nvidia_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     ors_api_key: Optional[str] = None
     graphhopper_api_key: Optional[str] = None

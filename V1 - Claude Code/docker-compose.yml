@@ -43,7 +43,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-johnrouter}:${POSTGRES_PASSWORD:-johnrouter_dev}@postgres:5432/${POSTGRES_DB:-johnrouter}
       - REDIS_URL=redis://redis:6379/0
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
       - ORS_API_KEY=${ORS_API_KEY:-}
       - VALHALLA_API_KEY=${VALHALLA_API_KEY:-}
       - VALHALLA_BASE_URL=${VALHALLA_BASE_URL:-https://api.stadiamaps.com}
@@ -71,7 +71,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-johnrouter}:${POSTGRES_PASSWORD:-johnrouter_dev}@postgres:5432/${POSTGRES_DB:-johnrouter}
       - REDIS_URL=redis://redis:6379/0
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
       - ORS_API_KEY=${ORS_API_KEY:-}
       - ENVIRONMENT=${ENVIRONMENT:-development}
     volumes:

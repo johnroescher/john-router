@@ -8,7 +8,6 @@ import asyncio
 from typing import Any, Dict, List, Optional, Tuple, Callable, Awaitable
 from uuid import uuid4, UUID
 
-from anthropic import AsyncAnthropic
 import structlog
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,8 +55,9 @@ class RideBriefLoopService:
     """Runs the 6-step Ride Brief Loop."""
 
     def __init__(self) -> None:
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
-        self.model = "claude-sonnet-4-20250514"
+        from app.services.llm_client import get_llm_client, get_llm_model
+        self.client = get_llm_client()
+        self.model = get_llm_model()
 
     async def run(
         self,
@@ -1887,21 +1887,22 @@ Current intent: {json.dumps(intent.model_dump(), indent=2)}
 
     async def _llm_json(self, prompt: str) -> Any:
         if not self.client:
-            logger.warning("Anthropic client not available, returning empty JSON")
+            logger.warning("LLM client not available, returning empty JSON")
             return {}
         
         try:
-            # Add timeout to prevent hanging
             import asyncio
             response = await asyncio.wait_for(
-                self.client.messages.create(
+                self.client.chat.completions.create(
                     model=self.model,
                     max_tokens=4096,
                     messages=[{"role": "user", "content": prompt}],
+                    temperature=1.0,
+                    top_p=1.0,
                 ),
-                timeout=30.0,  # 30 second timeout
+                timeout=30.0,
             )
-            text = response.content[0].text if response.content else "{}"
+            text = response.choices[0].message.content if response.choices else "{}"
             cleaned = self._extract_json(text)
             try:
                 result = json.loads(cleaned)
@@ -1922,10 +1923,10 @@ Current intent: {json.dumps(intent.model_dump(), indent=2)}
                 await cache_service.set(cache_key, result, ttl_seconds=3600)
                 return result
         except asyncio.TimeoutError:
-            logger.error("Anthropic API call timed out after 30 seconds")
+            logger.error("LLM API call timed out after 30 seconds")
             raise
         except Exception as e:
-            logger.error(f"Anthropic API call failed: {e}", exc_info=True)
+            logger.error(f"LLM API call failed: {e}", exc_info=True)
             raise
 
     def _parse_first_json(self, text: str) -> Any:
