@@ -59,7 +59,7 @@ class TestLLMClient:
         from app.services.llm_client import clamp_max_tokens, MIN_MAX_TOKENS
         assert clamp_max_tokens(300) == MIN_MAX_TOKENS
         assert clamp_max_tokens(500) == MIN_MAX_TOKENS
-        assert clamp_max_tokens(16384) == 16384
+        assert clamp_max_tokens(20000) == 20000
 
     def test_extract_llm_text_prefers_content(self):
         from app.services.llm_client import extract_llm_text

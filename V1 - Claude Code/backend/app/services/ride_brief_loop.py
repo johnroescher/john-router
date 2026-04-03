@@ -167,7 +167,7 @@ class RideBriefLoopService:
             candidates_total = 0
             max_iterations = 3
             max_candidates_total = 12
-            max_planning_latency_s = 55.0
+            max_planning_latency_s = 120.0
             status = "in_progress"
             selected_candidate_id = None
 
@@ -1901,7 +1901,7 @@ Current intent: {json.dumps(intent.model_dump(), indent=2)}
                     temperature=1.0,
                     top_p=1.0,
                 ),
-                timeout=30.0,
+                timeout=60.0,
             )
             text = extract_llm_text(response.choices[0]) if response.choices else "{}"
             cleaned = self._extract_json(text)

@@ -18,7 +18,7 @@ from app.core.config import settings
 
 _LLM_MODEL = "moonshotai/kimi-k2.5"
 _LLM_BASE_URL = "https://integrate.api.nvidia.com/v1"
-MIN_MAX_TOKENS = 8192
+MIN_MAX_TOKENS = 16384
 
 _client: Optional[AsyncOpenAI] = None
 
