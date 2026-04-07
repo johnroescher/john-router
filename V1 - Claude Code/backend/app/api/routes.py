@@ -498,7 +498,11 @@ async def generate_routes(
         geometry = candidate["geometry"]
         coords = geometry["coordinates"]
 
-        segment_metadata = await metadata_service.build_segment_metadata(geometry)
+        try:
+            segment_metadata = await metadata_service.build_segment_metadata(geometry)
+        except Exception as meta_err:
+            logger.warning(f"Segment metadata fetch failed for candidate {i}: {meta_err}")
+            segment_metadata = []
 
         # Analyze
         analysis = await analysis_service.analyze_route(

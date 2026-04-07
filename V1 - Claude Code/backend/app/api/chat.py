@@ -45,7 +45,7 @@ from app.core.feature_flags import is_feature_enabled
 chat_router = APIRouter()
 logger = structlog.get_logger()
 
-CHAT_RESPONSE_TIMEOUT_SECONDS = 180
+CHAT_RESPONSE_TIMEOUT_SECONDS = 60
 
 # Common place name patterns for extraction
 PLACE_PATTERNS = [

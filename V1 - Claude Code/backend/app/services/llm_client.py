@@ -1,12 +1,9 @@
 """Shared LLM client backed by NVIDIA NIM (OpenAI-compatible endpoint).
 
-Kimi K2.5 is a reasoning model: it writes an internal chain-of-thought in
-``message.reasoning`` before producing ``message.content``.  Both fields
-consume the ``max_tokens`` budget, so callers that request small limits
-(e.g. 300) may exhaust the budget during reasoning and get ``content=None``.
-
-``MIN_MAX_TOKENS`` ensures every request has enough headroom.
-``extract_llm_text`` reads ``content`` first, falls back to ``reasoning``.
+Currently using Llama 3.3 70B Instruct — a fast, non-reasoning model.
+``extract_llm_text`` handles both reasoning models (content + reasoning)
+and standard models (content only).
+``clamp_max_tokens`` enforces a floor so small requests still get useful output.
 """
 from __future__ import annotations
 
@@ -16,9 +13,9 @@ from openai import AsyncOpenAI
 
 from app.core.config import settings
 
-_LLM_MODEL = "moonshotai/kimi-k2.5"
+_LLM_MODEL = "meta/llama-3.1-70b-instruct"
 _LLM_BASE_URL = "https://integrate.api.nvidia.com/v1"
-MIN_MAX_TOKENS = 16384
+MIN_MAX_TOKENS = 4096
 
 _client: Optional[AsyncOpenAI] = None
 

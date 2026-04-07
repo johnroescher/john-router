@@ -90,14 +90,44 @@ async def overpass_query(query: str) -> Dict[str, Any]:
         return cached
     
     overpass_url = "https://overpass-api.de/api/interpreter"
-    async with httpx.AsyncClient(timeout=45.0) as client:
-        response = await client.post(
-            overpass_url,
-            data={"data": query},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-        response.raise_for_status()
-        data = response.json()
+    max_retries = 3
+    last_exc = None
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                response = await client.post(
+                    overpass_url,
+                    data={"data": query},
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
+                if response.status_code == 429:
+                    wait = 2 ** attempt + 1
+                    logger.warning(f"Overpass 429, retrying in {wait}s (attempt {attempt+1}/{max_retries})")
+                    import asyncio
+                    await asyncio.sleep(wait)
+                    continue
+                response.raise_for_status()
+                data = response.json()
+                break
+        except httpx.HTTPStatusError as e:
+            last_exc = e
+            if e.response.status_code == 429:
+                wait = 2 ** attempt + 1
+                logger.warning(f"Overpass 429 (raised), retrying in {wait}s")
+                import asyncio
+                await asyncio.sleep(wait)
+                continue
+            raise
+        except httpx.TimeoutException as e:
+            last_exc = e
+            if attempt < max_retries - 1:
+                logger.warning(f"Overpass timeout, retrying (attempt {attempt+1})")
+                continue
+            raise
+    else:
+        if last_exc:
+            raise last_exc
+        data = {"elements": []}
 
     features = []
     for element in data.get("elements", []):

@@ -21,9 +21,9 @@ import pytest
 class TestLLMClient:
     """Tests for app.services.llm_client."""
 
-    def test_get_llm_model_returns_kimi(self):
+    def test_get_llm_model_returns_current(self):
         from app.services.llm_client import get_llm_model
-        assert get_llm_model() == "moonshotai/kimi-k2.5"
+        assert get_llm_model() == "meta/llama-3.1-70b-instruct"
 
     def test_get_llm_client_returns_none_without_key(self):
         import app.services.llm_client as mod
@@ -59,7 +59,7 @@ class TestLLMClient:
         from app.services.llm_client import clamp_max_tokens, MIN_MAX_TOKENS
         assert clamp_max_tokens(300) == MIN_MAX_TOKENS
         assert clamp_max_tokens(500) == MIN_MAX_TOKENS
-        assert clamp_max_tokens(20000) == 20000
+        assert clamp_max_tokens(10000) == 10000
 
     def test_extract_llm_text_prefers_content(self):
         from app.services.llm_client import extract_llm_text
@@ -249,8 +249,9 @@ class TestLiveNVIDIANIM:
             base_url="https://integrate.api.nvidia.com/v1",
             api_key=os.environ["NVIDIA_API_KEY"],
         )
+        from app.services.llm_client import get_llm_model
         response = await client.chat.completions.create(
-            model="moonshotai/kimi-k2.5",
+            model=get_llm_model(),
             max_tokens=clamp_max_tokens(100),
             messages=[{"role": "user", "content": "Reply with exactly: OK"}],
             temperature=1.0,
